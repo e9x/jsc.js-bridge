@@ -110,11 +110,12 @@ git clone https://github.com/e9x/jsc.js-bridge.git
 cd jsc.js-bridge/build-wasm
 ```
 
-6. Run `prep_env.bat`:```sh
+6. Run `prep_env.bat`:
+```sh
 ./prep_env.bat
 ```
 
-7. Create a build target:
+7. Create the build target:
 ```sh
 gn gen out --args="target_os=\"wasm\""
 ```
