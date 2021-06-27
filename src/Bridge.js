@@ -73,34 +73,80 @@ class Bridge {
 			resolve(this.ref_create(ret));
 		});
 		
-		this.ipc.on('ref_construct', (resolve, id, argsref) => {
-			var args = [...this.ref_read(argsref)],
-				target = this.ref_resolve(id);
+		this.ipc.on('ref_get', (resolve, id, propref) => {
+			var prop = this.ref_read(propref),
+				target = this.ref_resolve(id),
+				data, threw;
 			
-			resolve(this.ref_create(Reflect.construct(target, args)));
+			try{ data = Reflect.get(target, prop)
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_set', (resolve, id, propref, valueref) => {
+			var prop = this.ref_read(propref),
+				value = this.ref_read(valueref),
+				target = this.ref_resolve(id),
+				data, threw;
+			
+			try{ data = Reflect.set(target, prop, value)
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.ipc.on('ref_apply', (resolve, id, thatref, argsref) => {
 			var that = this.ref_read(thatref),
 				args = this.ref_read(argsref),
 				target = this.ref_resolve(id),
-				good_args = [];
+				good_args = [],
+				data, threw;
 			
 			if(args.length)good_args = [...args];
 			
-			resolve(this.ref_create(Reflect.apply(target, that, good_args)));
+			try{ data = Reflect.apply(target, that, good_args)
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_construct', (resolve, id, argsref) => {
+			var args = [...this.ref_read(argsref)],
+				target = this.ref_resolve(id),
+				data, threw;
+			
+			try{ data = Reflect.construct(target, args)
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.ipc.on('ref_has', (resolve, id, propref) => {
-			resolve(this.ref_create(Reflect.has(this.ref_resolve(id), this.ref_read(propref))));
+			var data, threw;
+			
+			try{ data = Reflect.has(this.ref_resolve(id), this.ref_read(propref))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.ipc.on('ref_proto', (resolve, id) => {
-			resolve(this.ref_create(Reflect.getPrototypeOf(this.ref_resolve(id))));
+			var data, threw;
+			
+			try{ data = Reflect.getPrototypeOf(this.ref_resolve(id))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.ipc.on('ref_ownkeys', (resolve, id) => {
-			resolve(this.ref_create(Reflect.ownKeys(this.ref_resolve(id))));
+			var data, threw;
+			
+			try{ data = Reflect.ownKeys(this.ref_resolve(id))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.ipc.on('ref_desc', (resolve, id, propref) => {
@@ -116,21 +162,6 @@ class Bridge {
 			} : desc);
 		});
 		
-		this.ipc.on('ref_set', (resolve, id, propref, valueref) => {
-			var prop = this.ref_read(propref),
-				value = this.ref_read(valueref),
-				target = this.ref_resolve(id);
-			
-			resolve(this.ref_create(Reflect.set(target, prop, value)));
-		});
-		
-		this.ipc.on('ref_get', (resolve, id, propref) => {
-			var prop = this.ref_read(propref),
-				target = this.ref_resolve(id);
-			
-			resolve(this.ref_create(Reflect.get(target, prop)));
-		});
-		
 		this.refs = new Map();
 		
 		this.ref_create(this);
@@ -143,8 +174,8 @@ class Bridge {
 	ref_resolve(id){
 		return this.refs.get(id);
 	}
-	ref_create(data){
-		var ret = [ typeof data, data, data == null ];
+	ref_create(data, exception = false){
+		var ret = [ typeof data, data, data == null, exception ];
 		
 		for(let [ id, dt ] of this.refs)if(data === dt){
 			ret[1] = id;
@@ -176,12 +207,17 @@ class Bridge {
 		
 		return ret;
 	}
-	ref_read([ type, id, is_null ]){
-		if(is_null)return null;
-		else if(type == 'symbol_res' && typeof id == 'string')return Symbol[id];
-		else if(type == 'ref')return this.ref_resolve(id);
-		else if(this.needs_handle.includes(type))return this.ref_handle(id, type);
-		else return id;
+	ref_read([ type, id, is_null, is_exception ], can_throw){
+		var data;
+		
+		if(is_null)data = null;
+		else if(type == 'symbol_res' && typeof id == 'string')data = Symbol[id];
+		else if(type == 'ref')data = this.ref_resolve(id);
+		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
+		else data = id;
+		
+		if(is_exception && can_throw)throw data;
+		else return data;
 	}
 	// resolve a local reference
 	ref_handle(id, type = 'object'){

@@ -27,15 +27,25 @@ class Host {
 		this.eval('debugger;');
 	}
 	eval(x, ...args){
-		var is_func = typeof x == 'function';
-		
-		if(is_func)x = '(' + x + ')';
-		
-		var ret = this.registery.ref_read(this.ipc.post('eval', x));
-		
-		if(ret.thrown)throw this.registery.native_error(ret.data);
-		
-		return is_func ? ret.data(...args) : ret.data;
+		if(typeof x == 'function'){
+			let ret = this.registery.ref_read(this.ipc.post('eval', '(' + x + ')'));
+			
+			// SyntaxError
+			if(ret.thrown)throw this.registery.native_error(ret.data);
+			
+			try{
+				return ret.data(...args);
+			}catch(err){
+				console.log(err);
+				throw this.registery.native_error(err);
+			}
+		}else{
+			let ret = this.registery.ref_read(this.ipc.post('eval', x));
+			
+			if(ret.thrown)throw this.registery.native_error(ret.data);
+			
+			return ret.data;
+		}
 	}
 	json(data){
 		// create a parallel json object for sending to native functions like mutationobserver.observe options

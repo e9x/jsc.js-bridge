@@ -34,6 +34,27 @@ Embed the demo code on your website or host it locally
 <script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js?6.27.2021'></script>
 ```
 
+### Calling native functions:
+
+Native functions cannot accept handles. Create a native object and assign your data to it.
+
+```js
+JSC.eval(() => {
+	var native_object = new JSC.global.Object();
+	var observer = new JSC.global.MutationObserver(mutations => {
+		console.log('MUTATIONS:', mutations);
+	});
+	
+	native_object.subtree = true;
+	native_object.childList = true;
+	
+	// If we used a object created in this context, we will get:
+	// Failed to execute 'observe' on 'MutationObserver': The provided value cannot be converted to a sequence.
+	
+	observer.observe(JSC.global.document, native_object);
+});
+```
+
 ### JSC.global
 
 A handle referencing the context's `globalThis`.
