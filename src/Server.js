@@ -18,6 +18,8 @@ class Server extends Host {
 		
 		this.bytecode = {
 			compile: src => {
+				if(typeof src == 'function')src = '(' + src + ')()';
+				
 				return this.bytecode_compile(src);
 			},
 			load: src => {

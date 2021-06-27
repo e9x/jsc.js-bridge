@@ -235,14 +235,12 @@ class Client extends Host {
 		
 		super((...data) => jsc_emit(JSON.stringify(data)));
 		
-		globalThis.global = globalThis;
-		
-		__webpack_require__.g.console_log = console.log = (...data) => this.ipc.send('log', ...data);
+		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
 		
 		this.ready.then(() => {
 			var cons = this.global.console;
 			
-			for(let prop of Reflect.ownKeys(cons))__webpack_require__.g.console[prop] = (...data) => cons[prop]('[SUB]', ...data.map(data => this.registery.global.native_error(data)));
+			for(let prop of Reflect.ownKeys(cons))globalThis.console[prop] = (...data) => cons[prop]('[SUB]', ...data.map(data => this.registery.global.native_error(data)));
 		});
 	}
 };
@@ -474,19 +472,6 @@ module.exports = IPC;
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
-/******/ 	
-/************************************************************************/
-/******/ 	/* webpack/runtime/global */
-/******/ 	(() => {
-/******/ 		__webpack_require__.g = (function() {
-/******/ 			if (typeof globalThis === 'object') return globalThis;
-/******/ 			try {
-/******/ 				return this || new Function('return this')();
-/******/ 			} catch (e) {
-/******/ 				if (typeof window === 'object') return window;
-/******/ 			}
-/******/ 		})();
-/******/ 	})();
 /******/ 	
 /************************************************************************/
 /******/ 	
