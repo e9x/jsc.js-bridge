@@ -239,7 +239,7 @@ class Bridge {
 		return proxy;
 	}
 	native_error(data){
-		if(data instanceof JSC.global.Error){
+		if(data instanceof this.host.context.Error){
 			let newe = new(data.name in window ? window[data.name] : Error)(data.message + data.stack);
 			
 			return newe;
@@ -380,6 +380,9 @@ class Handle {
 	getPrototypeOf(target){
 		return this.host.ref_read(this.host.ipc.post('ref_proto', this.id), true);
 	}
+	setPrototypeOf(target, value){
+		
+	}
 	has(target, prop){
 		return this.host.ipc.post('ref_has', this.id, this.host.ref_create(prop));
 	}
@@ -416,8 +419,8 @@ class Host {
 		this.registery.ref_create(globalThis);
 		this.registery.ref_create(this);
 		
-		this.global = this.registery.ref_handle(1);
-		this.global_jsc = this.registery.ref_handle(2);
+		this.context = this.registery.ref_handle(1);
+		this.global = this.registery.ref_handle(2);
 		
 		this.ipc.on('ready', () => {
 			this.ready.resolve();
@@ -449,7 +452,7 @@ class Host {
 	}
 	json(data){
 		// create a parallel json object for sending to native functions like mutationobserver.observe options
-		return this.global.JSON.parse(JSON.stringify(data));
+		return this.context.JSON.parse(JSON.stringify(data));
 	}
 };
 

@@ -228,7 +228,7 @@ class Bridge {
 		return proxy;
 	}
 	native_error(data){
-		if(data instanceof JSC.global.Error){
+		if(data instanceof this.host.context.Error){
 			let newe = new(data.name in window ? window[data.name] : Error)(data.message + data.stack);
 			
 			return newe;

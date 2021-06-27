@@ -23,6 +23,9 @@ class Handle {
 	getPrototypeOf(target){
 		return this.host.ref_read(this.host.ipc.post('ref_proto', this.id), true);
 	}
+	setPrototypeOf(target, value){
+		
+	}
 	has(target, prop){
 		return this.host.ipc.post('ref_has', this.id, this.host.ref_create(prop));
 	}

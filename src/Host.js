@@ -16,8 +16,8 @@ class Host {
 		this.registery.ref_create(globalThis);
 		this.registery.ref_create(this);
 		
-		this.global = this.registery.ref_handle(1);
-		this.global_jsc = this.registery.ref_handle(2);
+		this.context = this.registery.ref_handle(1);
+		this.global = this.registery.ref_handle(2);
 		
 		this.ipc.on('ready', () => {
 			this.ready.resolve();
@@ -49,7 +49,7 @@ class Host {
 	}
 	json(data){
 		// create a parallel json object for sending to native functions like mutationobserver.observe options
-		return this.global.JSON.parse(JSON.stringify(data));
+		return this.context.JSON.parse(JSON.stringify(data));
 	}
 };
 

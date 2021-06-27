@@ -40,8 +40,8 @@ Native functions cannot accept handles. Create a native object and assign your d
 
 ```js
 JSC.eval(() => {
-	var native_object = new JSC.global.Object();
-	var observer = new JSC.global.MutationObserver(mutations => {
+	var native_object = new JSC.context.Object();
+	var observer = new JSC.context.MutationObserver(mutations => {
 		console.log('MUTATIONS:', mutations);
 	});
 	
@@ -51,15 +51,15 @@ JSC.eval(() => {
 	// If we used a object created in this context, we will get:
 	// Failed to execute 'observe' on 'MutationObserver': The provided value cannot be converted to a sequence.
 	
-	observer.observe(JSC.global.document, native_object);
+	observer.observe(JSC.context.document, native_object);
 });
 ```
 
-### JSC.global
+### JSC.context
 
 A handle referencing the context's `globalThis`.
 
-### JSC.global_jsc
+### JSC.global
 
 A handle referencing the context's `JSC` object.
 
@@ -103,7 +103,7 @@ Things to note:
 
 - All source code and syntax is removed in compiled code (including function bodies).
 
-- The returned value cannot be accessed. You will have to expose a function or data in the `JSC.global_jsc` object or in the context.
+- The returned value cannot be accessed. You will have to expose a function or data in the `JSC.global` object or in the context.
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -126,13 +126,13 @@ var BYTECODE = JSC.bytecode.compile(() => {
 		return hash >>> 0;
 	}
 	
-	JSC.global_jsc.private_function = hash;
+	JSC.global.private_function = hash;
 });
 
 // Load the bytecode
 JSC.bytecode.load(BYTECODE);
 
-console.log(JSC.global_jsc.private_function.toString()); // "function hash"
+console.log(JSC.global.private_function.toString()); // "function hash"
 
 // Calling toString on the function generated from bytecode no longer returns the source which means our hash function is secure.
 ```
@@ -147,10 +147,10 @@ Runs a debugger statement on the parallel context (preferrably main context, deb
 // Enter the JSC context
 JSC.eval(() => {
 	// Create an instance of the parent context's headers because they are not present in this context.
-	var headers = new JSC.global.Headers();
+	var headers = new JSC.context.Headers();
 	
 	// Create a native object for calling the native function fetch.
-	var options = new JSC.global.Object();
+	var options = new JSC.context.Object();
 	
 	options.method = 'POST';
 	options.body = JSON.stringify({
@@ -161,7 +161,7 @@ JSC.eval(() => {
 	headers.set('content-type', 'application/json');
 	
 	// Call the parent context's native fetch function using our native object.
-	JSC.global.fetch('https://api.sys32.dev/v2/test', options).then(res => {
+	JSC.context.fetch('https://api.sys32.dev/v2/test', options).then(res => {
 		console.log('Recieved response code:', res.status);
 		// [SUB] Recieved response code: 404
 	});
