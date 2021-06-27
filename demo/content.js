@@ -15,7 +15,7 @@ JSC.ready.then(() => console.log(JSC.evaluate(() => {
 			node[tag] = url;
 		}
 		
-		dom.querySelector('.description').textContent = 'This page was not loaded directly from the main JS context.';
+		dom.querySelector('.project-tagline').textContent = 'This page was not loaded directly from the main JS context.';
 		
 		JSC.global.document.documentElement.innerHTML = dom.documentElement.innerHTML;
 	});

@@ -1,1 +1,0 @@
-build.ninja: ../BUILD.gn ../Source/JavaScriptCore/BUILD.gn ../Source/WTF/BUILD.gn ../Source/icu/BUILD.gn ../build/BUILD.gn ../build/BUILDCONFIG.gn ../build/toolchain/BUILD.gn ../build/toolchain/clang_toolchain.gni ../build/toolchain/msvc_toolchain.gni ./args.gn ../.gn
