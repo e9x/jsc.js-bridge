@@ -1,6 +1,6 @@
-JSC.ready.then(() => console.log(JSC.evaluate(() => {
-	var base = new JSC.global.URL('https://e9x.github.io/jsc.js-bridge/');
-
+var main = () => {
+	var base = new JSC.global.URL('https://e9x.github.io/jsc.js-bridge/?');
+	
 	JSC.global.fetch(base).then(res => res.text()).then(text => {
 		var dom = new JSC.global.DOMParser().parseFromString(text, 'text/html');
 		
@@ -15,8 +15,15 @@ JSC.ready.then(() => console.log(JSC.evaluate(() => {
 			node[tag] = url;
 		}
 		
-		dom.querySelector('.project-tagline').textContent = 'This page was not loaded directly from the main JS context.';
+		dom.querySelector('.project-tagline').innerHTML = '<pre>This page was not loaded directly from the main JS context.\nExplore the context bridge using devtools.</pre>';
 		
 		JSC.global.document.documentElement.innerHTML = dom.documentElement.innerHTML;
 	});
-})));
+};
+
+console.log('window.JSC variable is explosed.', JSC);
+
+JSC.ready.then(() => {
+	console.log('JSC.js bridge is ready. New context\'s global is', JSC.global);
+	JSC.evaluate(main);
+});

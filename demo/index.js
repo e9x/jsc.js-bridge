@@ -4,7 +4,6 @@
 
 var urls = {
 	'jsc.js': 'jsc.js',
-	
 };
 
 class Events {
