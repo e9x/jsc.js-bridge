@@ -8,7 +8,7 @@ Inspired by [Electron's remote module](https://github.com/electron/remote) and [
 
 ## Use cases:
 
-- Securing features in webpages (custom elements, websocket protocols, HTML generation, network requests)
+- Securing code in webpages (custom elements, websocket protocols, HTML generation, network requests, etc..)
 - Skipping parse times for huge blocks of code via bytecode
 - Simulating enviorments such as NodeJS by having no `window` or `location` properties in the context
 
