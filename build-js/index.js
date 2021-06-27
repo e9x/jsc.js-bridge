@@ -89,7 +89,7 @@ var compiler = webpack({
 			await fs.promises.copyFile(consts.wasm, path.join(compiler.options.output.path, 'jsc.wasm'));
 			console.log('JSC build success');
 		}
-	});
+	};
 	
 	if(process.argv.includes('-once'))compiler.run(callback);
 	else compiler.watch({}, callback);

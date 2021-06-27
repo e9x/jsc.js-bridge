@@ -23,7 +23,10 @@ class Host {
 			this.ready.resolve();
 		});
 	}
-	evaluate(x, ...args){
+	debugger(){
+		this.eval('debugger;');
+	}
+	eval(x, ...args){
 		var is_func = typeof x == 'function';
 		
 		if(is_func)x = '(' + x + ')';

@@ -27,5 +27,5 @@ JSC.ready.then(() => {
 	console.log('JSC.js bridge is ready. New context\'s global is', JSC.global);
 	console.log('Access context variables through JSC.global');
 	
-	JSC.evaluate(main);
+	JSC.eval(main);
 });

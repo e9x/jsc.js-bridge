@@ -34,7 +34,7 @@ Embed the demo code on your website or host it locally
 <script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js?6.27.2021'></script>
 ```
 
-### window.JSC.evaluate(code, [...args]) ⇒ `Handle`
+### window.JSC.eval(code, [...args]) ⇒ `Handle`
 
 Returns the code executed in the parallel context as a handle or JSON.
 
@@ -43,19 +43,22 @@ Returns the code executed in the parallel context as a handle or JSON.
 | code | `String|Function` | A string or function containing code to be executed in the JSC context |
 | ...args | `Any` | Arguments to call `code` with, this will be ignored if `code` is a string |
 
-
 #### Example:
 
 ```js
-console.log(JSC.evaluate(`globalThis.toString()`)); // "[object GlobalObject]"
+console.log(JSC.eval(`globalThis.toString()`)); // "[object GlobalObject]"
 
-JSC.evaluate(function(exposed_arg){
+JSC.eval(function(exposed_arg){
   console.log(typeof fetch); // undefined
   console.log(typeof exposed_arg); // function
   
   exposed_arg('https://www.google.com').then(res => console.log(res.headers.get('content-type')));
 }, fetch);
 ```
+
+### window.JSC.debugger()
+
+Runs a debugger statement on the parallel context (preferrably main context, debugging JSC contexts will fail)
 
 ### window.JSC.global
 
@@ -65,7 +68,7 @@ A handle referencing the context's `globalThis`.
 
 ```js
 // Enter the JSC context
-JSC.evaluate(() => {
+JSC.eval(() => {
 	// Create an instance of the parent context's headers because they are not present in this context.
 	var headers = new JSC.global.Headers();
 	
