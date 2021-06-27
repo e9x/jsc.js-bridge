@@ -135,19 +135,16 @@ ninja -C out
 1. Install [NodeJS 14<=](https://nodejs.org/en/)
 
 2. Clone the repo or enter pre-existing folder:
-
 ```sh
 git clone https://github.com/e9x/jsc.js-bridge.git
 ```
 
 3. Enter the JS builder directory
-
 ```sh
 cd jsc.js-bridge/build-wasm
 ```
 
 4. Install NPM modules
-
 ```sh
 npm install
 ```
