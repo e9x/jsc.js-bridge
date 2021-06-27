@@ -1,0 +1,16 @@
+[SourceExplorer.ignore]
+.git/
+*.suo
+*.pyc
+ForwardingHeaders/
+
+[SearchableFiles.include]
+*
+
+[SearchableFiles.ignore]
+*.pdb
+*.exe
+*.dll
+*.obj
+*.o
+ChangeLog-*

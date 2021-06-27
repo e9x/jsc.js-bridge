@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en-us">
+    <head>
+        <title>JSC.js</title>
+        <meta charset="utf-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.slim.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.7.2/js/jquery.terminal.min.js"></script>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/1.7.2/css/jquery.terminal.min.css" rel="stylesheet"/>
+        <script href="https://cdnjs.cloudflare.com/ajax/libs/jquery-mousewheel/3.1.13/jquery.mousewheel.min.js"></script>
+        <script defer type="text/javascript" src="jsc.js"></script>
+        <script defer type="text/javascript" src="v8_benchmark.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    </head>
+<body>
+<div id="jsc_term" class="terminal"></div>
+
+<script type='text/javascript'>
+var term;
+term = $('#jsc_term').terminal(function(command) {
+    if (command !== '') {
+        try {
+            if (command == 'v8_benchmark') {
+                command = v8_wrapper.toString() + "v8_wrapper();";
+            }
+            //var result = window.eval(command);
+            var result = jsc_eval(command);
+            if (result !== undefined) {
+                this.echo(String(result));
+            }
+        } catch(e) {
+            this.error(String(e));
+        }
+    } else {
+       this.echo('');
+    }
+}, {
+    greetings: 'JSC.js Shell',
+    name: 'jsc_terminal',
+    height: 600,
+    prompt: ""
+});
+</script>
+
+<script type='text/javascript'>
+var jsc_eval;
+var Module = {
+    preRun: [(function() {
+        jsc_eval = Module.cwrap('jsc_eval', 'string', ['string']);
+    })],
+    postRun: [],
+    print: (function() {
+        return function(text) {
+            if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+            term.echo(text);
+        };
+    })(),
+    printErr: function(text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.error(text);
+        term.echo(text);
+    },
+    setStatus: function(text) {
+        if (!Module.setStatus.last) Module.setStatus.last = { time: Date.now(), text: '' };
+        if (text === Module.setStatus.text) return;
+        term.echo(text);
+    },
+    totalDependencies: 0,
+    monitorRunDependencies: function(left) {
+        //this.totalDependencies = Math.max(this.totalDependencies, left);
+        Module.setStatus(left ? 'Preparing... ' : 'All downloads complete.');
+        if (left) {
+            term.set_prompt("");
+        } else {
+            term.set_prompt("JSC &gt;&gt;&gt; ");
+        }
+    }
+};
+Module.setStatus('Downloading contents, please wait...');
+window.onerror = function(event) {
+    // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+    Module.setStatus('Exception thrown, see JavaScript console');
+    Module.setStatus = function(text) {
+        if (text) Module.printErr('[post-exception status] ' + text);
+    };
+};
+</script>
+</body>
+</html>
