@@ -140,4 +140,4 @@ npm install
 node ./index.js --once
 ```
 
-JS output is found in the new `dist` folder
+JS output is found in the `dist/` folder
