@@ -31,7 +31,7 @@ Inspired by [Electron's remote module](https://github.com/electron/remote) and [
 Embed the demo code on your website or host it locally
 
 ```html
-<script src='https://e9x.github.io/jsc.js-bridge/demo/jsc.js?6-26-2021'></script>
+<script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js?6.27.2021'></script>
 ```
 
 ### window.JSC.evaluate(code, [...args]) ⇒ `Handle`
