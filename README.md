@@ -26,7 +26,7 @@ Inspired by [Electron's remote module](https://github.com/electron/remote) and [
 
 ## Usage:
 
-ℹ This project is in its early stages. If a feature is missing, open a issue or implement it yourself and create a pull request.
+ℹ This project is in its early stages. If a feature is missing, open an issue or implement it yourself and create a pull request.
 
 Embed the demo code on your website or host it locally
 
