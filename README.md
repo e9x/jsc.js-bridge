@@ -1,7 +1,3 @@
-<title>test</title>
-# jsc.js-bridge
-Bridge contexts made in JSC to the main JS context.
-
 View the [demo](https://e9x.github.io/jsc.js-bridge/demo/).
 
 ## Explanation:
