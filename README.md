@@ -1,6 +1,8 @@
 # jsc.js-bridge
 Bridge contexts made in JSC to the main JS context.
 
+View the [demo](https://e9x.github.io/jsc.js-bridge/demo/).
+
 ## Explanation:
 
 [JSC.js](https://github.com/mbbill/JSC.js) provides a foundation for embedding JavaScriptCore in the browser using [Emscripten](https://emscripten.org/).
@@ -29,6 +31,8 @@ Inspired by [Electron's remote module](https://github.com/electron/remote) and [
 
 ## Usage:
 
+ℹ This project is in its early stages. If a feature is missing, open a issue or implement it yourself and create a pull request.
+
 Embed the demo code on your website or host it locally
 
 ```html
@@ -47,7 +51,7 @@ Returns the code executed in the parallel context as a handle or JSON.
 
 #### Example:
 
-```
+```js
 console.log(JSC.evaluate(`globalThis.toString()`)); // "[object GlobalObject]"
 
 JSC.evaluate(function(exposed_arg){
@@ -56,4 +60,71 @@ JSC.evaluate(function(exposed_arg){
   
   exposed_arg('https://www.google.com').then(res => console.log(res.headers.get('content-type')));
 }, fetch);
+```
+
+### window.JSC.global
+
+A handle referencing the context's `globalThis`.
+
+#### Example:
+
+```js
+// Enter the JSC context
+JSC.evaluate(() => {
+	// Create an instance of the parent context's headers because they are not present in this context.
+	var headers = new JSC.global.Headers();
+	
+	// Create a native object for calling the native function fetch.
+	var options = new JSC.global.Object();
+	
+	options.method = 'POST';
+	options.body = JSON.stringify({
+		'sent-from': 'jsc',
+	});
+	
+	options.headers = headers;
+	headers.set('content-type', 'application/json');
+	
+	// Call the parent context's native fetch function using our native object.
+	JSC.global.fetch('https://api.sys32.dev/v2/test', options).then(res => {
+		console.log('Recieved response code:', res.status);
+		// [SUB] Recieved response code: 404
+	});
+});
+```
+
+## Building:
+
+Original build instructions found at https://github.com/mbbill/JSC.js/blob/master/README.md
+
+1. Install [Emscripten](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) and setup em++ enviorment variables
+
+2. Install [Ninja/CMake](https://cmake.org/download/)
+
+3. Open a terminal
+
+4. Clone the repo:
+
+```sh
+git clone https://github.com/e9x/jsc.js-bridge.git
+```
+
+5. Enter the repo:
+
+```sh
+cd jsc.js-bridge
+```
+
+6. Run `prep_env.bat`
+
+7. Create a build target:
+
+```sh
+gn gen out --args="target_os=\"wasm\""
+```
+
+7. Build with Ninja:
+
+```sh
+ninja -C out
 ```
