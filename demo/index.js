@@ -3,7 +3,7 @@
 // Website hosts: change the urls to paths resolving to JSC
 
 var urls = {
-	'jsc.js': 'jsc.js?cache',
+	'jsc.js': 'jsc.js',
 	
 };
 
