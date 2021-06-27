@@ -114,9 +114,6 @@ JSC.bytecode.load(BYTECODE);
 console.log(JSC.global_jsc.private_function.toString()); // "function hash"
 
 // Calling toString on the function generated from bytecode no longer returns the source which means our hash function is secure.
-// Of course the bytecode can be viewed and the strings are clearly there but it is missing:
-// - Syntax
-// - Comments
 ```
 
 ### JSC.debugger()
