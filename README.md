@@ -100,23 +100,27 @@ Original build instructions found at https://github.com/mbbill/JSC.js/blob/maste
 
 3. Open a terminal
 
-4. Clone the repo: ```sh
+4. Clone the repo:
+```sh
 git clone https://github.com/e9x/jsc.js-bridge.git
 ```
 
-5. Enter the wasm builder: ```sh
+5. Enter the wasm builder:
+```sh
 cd jsc.js-bridge/build-wasm
 ```
 
-6. Run `prep_env.bat`: ```sh
+6. Run `prep_env.bat`:```sh
 ./prep_env.bat
 ```
 
-7. Create a build target: ```sh
+7. Create a build target:
+```sh
 gn gen out --args="target_os=\"wasm\""
 ```
 
-7. Build with Ninja: ```sh
+8. Build with Ninja:
+```sh
 ninja -C out
 ```
 
@@ -124,19 +128,23 @@ ninja -C out
 
 1. Install [NodeJS 14<=](https://nodejs.org/en/)
 
-2. Clone the repo or enter pre-existing folder: ```sh
+2. Clone the repo or enter pre-existing folder:
+```
 git clone https://github.com/e9x/jsc.js-bridge.git
 ```
 
-3. Enter the JS builder directory: ```sh
+3. Enter the JS builder directory:
+```sh
 cd jsc.js-bridge/build-wasm
 ```
 
-4. Install NPM modules: ```sh
+4. Install NPM modules:
+```sh
 npm install
 ```
 
-5. Run the builder: ```sh
+5. Run the builder:
+```sh
 node ./index.js --once
 ```
 
