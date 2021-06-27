@@ -109,7 +109,7 @@ Things to note:
 | --- | --- | --- |
 | bytecode | `String` | Hex encoded bytecode |
 
-### Example:
+#### Example:
 
 ```js
 // Do not include the compiled function outside of development.
