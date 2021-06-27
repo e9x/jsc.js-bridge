@@ -11,10 +11,7 @@ class Server extends Host {
 		
 		this.create_module();
 		
-		this.ready.then(() => {
-			this.reval(this.client_script);
-			this.ipc.send('ready');
-		});
+		this.ready.then(() => this.ipc.send('ready'));
 		
 		this.bytecode = {
 			compile: src => {
@@ -33,6 +30,7 @@ class Server extends Host {
 				async () => {
 					// this.reval = this.Module.cwrap('jsc_eval', 'string', ['string']);
 					
+					// Log uncaught exceptions.
 					var run = this.reval = Module.cwrap('jsc_eval', 'string', ['string']);
 					
 					this.reval = x => {
@@ -47,7 +45,8 @@ class Server extends Host {
 					
 					this.bytecode_eval = Module.cwrap('jsc_eval_bytecode', 'string', ['string']);
 					
-					this.client_script = await(await fetch(new URL(client_file, current))).text();
+					// Load the client script.
+					this.reval(await(await fetch(new URL(client_file, current))).text());
 					
 					setTimeout(() => this.ready.resolve(), 10);
 				},
@@ -60,6 +59,7 @@ class Server extends Host {
 				console.error('[JSC ERROR]', ...text);
 			},
 			setStatus(text){
+				// Unnecessary.
 				// console.info('[JSC STATUS]', text);
 			},
 			locateFile(file){
