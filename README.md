@@ -1,5 +1,3 @@
-View the [demo](https://e9x.github.io/jsc.js-bridge/demo/).
-
 ## Explanation:
 
 [JSC.js](https://github.com/mbbill/JSC.js) provides a foundation for embedding JavaScriptCore in the browser using [Emscripten](https://emscripten.org/).
