@@ -1,0 +1,7 @@
+# billming
+
+group("main") {
+    deps = [
+        "//Source/JavaScriptCore:jsc",
+    ]
+}

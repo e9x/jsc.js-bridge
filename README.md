@@ -92,6 +92,8 @@ JSC.evaluate(() => {
 
 Original build instructions found at https://github.com/mbbill/JSC.js/blob/master/README.md
 
+### Build the WASM:
+
 1. Install [Emscripten](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) and setup em++ enviorment variables
 
 2. Install [Ninja/CMake](https://cmake.org/download/)
@@ -104,13 +106,17 @@ Original build instructions found at https://github.com/mbbill/JSC.js/blob/maste
 git clone https://github.com/e9x/jsc.js-bridge.git
 ```
 
-5. Enter the repo:
+5. Enter the wasm builder:
 
 ```sh
-cd jsc.js-bridge
+cd jsc.js-bridge/build-wasm
 ```
 
 6. Run `prep_env.bat`
+
+```s
+./prep_env.bat
+```
 
 7. Create a build target:
 
@@ -123,3 +129,33 @@ gn gen out --args="target_os=\"wasm\""
 ```sh
 ninja -C out
 ```
+
+### Build the JS:
+
+1. Install [NodeJS 14<=](https://nodejs.org/en/)
+
+2. Clone the repo or enter pre-existing folder:
+
+```sh
+git clone https://github.com/e9x/jsc.js-bridge.git
+```
+
+3. Enter the JS builder directory
+
+```sh
+cd jsc.js-bridge/build-wasm
+```
+
+4. Install NPM modules
+
+```sh
+npm install
+```
+
+5. Run the builder
+
+```sh
+node ./index.js --once
+```
+
+JS output is found in the new `dist` folder
