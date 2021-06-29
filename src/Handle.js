@@ -9,8 +9,8 @@ class Handle {
 	apply(target, that, args){
 		return this.host.ref_read(this.host.ipc.post('ref_apply', this.id, this.host.ref_create(that), args.length ? this.host.ref_create(args) : [ 'json', [] ]), true);
 	}
-	construct(target, args){
-		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args)), true);
+	construct(target, args, new_target){
+		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args), this.host.ref_create(new_target)), true);
 	}
 	get(target, prop){
 		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop)), true);

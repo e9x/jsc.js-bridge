@@ -135,12 +135,13 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_construct', (resolve, id, argsref) => {
-			var args = [...this.ref_read(argsref)],
+		this.ipc.on('ref_construct', (resolve, id, args_ref, new_target_ref) => {
+			var args = [...this.ref_read(args_ref)],
+				new_target = this.ref_read(new_target_ref),
 				target = this.ref_resolve(id),
 				data, threw;
 			
-			try{ data = Reflect.construct(target, args)
+			try{ data = Reflect.construct(target, args, new_target)
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
@@ -366,8 +367,8 @@ class Handle {
 	apply(target, that, args){
 		return this.host.ref_read(this.host.ipc.post('ref_apply', this.id, this.host.ref_create(that), args.length ? this.host.ref_create(args) : [ 'json', [] ]), true);
 	}
-	construct(target, args){
-		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args)), true);
+	construct(target, args, new_target){
+		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args), this.host.ref_create(new_target)), true);
 	}
 	get(target, prop){
 		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop)), true);

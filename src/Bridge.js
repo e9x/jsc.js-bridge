@@ -111,12 +111,13 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_construct', (resolve, id, argsref) => {
-			var args = [...this.ref_read(argsref)],
+		this.ipc.on('ref_construct', (resolve, id, args_ref, new_target_ref) => {
+			var args = [...this.ref_read(args_ref)],
+				new_target = this.ref_read(new_target_ref),
 				target = this.ref_resolve(id),
 				data, threw;
 			
-			try{ data = Reflect.construct(target, args)
+			try{ data = Reflect.construct(target, args, new_target)
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));

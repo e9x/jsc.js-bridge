@@ -17,6 +17,10 @@ var textarea = document.querySelector('.output'),
 			}
 		};
 		
+		JSC.context.test = secure_class;
+		
+		console.log(new JSC.context.Array());
+		
 		try{
 			JSC.context.customElements.define('secure-input', secure_class, new JSC.context.Object());
 			
