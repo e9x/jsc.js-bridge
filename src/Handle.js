@@ -19,7 +19,13 @@ class Handle {
 		return this.host.ref_read(this.host.ipc.post('ref_set', this.id, this.host.ref_create(prop), this.host.ref_create(value)), true);
 	}
 	getOwnPropertyDescriptor(target, prop){
-		return this.host.ipc.post('ref_desc', this.id, this.host.ref_create(prop)) || undefined;
+		return this.host.ipc.post('ref_get_desc', this.id, this.host.ref_create(prop)) || undefined;
+	}
+	defineProperty(target, prop, desc){
+		
+	}
+	deleteProperty(target, prop){
+		
 	}
 	getPrototypeOf(target){
 		return this.host.ref_read(this.host.ipc.post('ref_get_proto', this.id), true);

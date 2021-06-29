@@ -73,10 +73,11 @@ class Bridge {
 			resolve(this.ref_create(ret));
 		});
 		
-		this.ipc.on('ref_get', (resolve, id, propref) => {
-			var prop = this.ref_read(propref),
-				target = this.ref_resolve(id),
-				data, threw;
+		this.ipc.on('ref_get', (resolve, target, prop) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			
+			var data, threw;
 			
 			try{ data = Reflect.get(target, prop)
 			}catch(err){ data = err; threw = true }
@@ -84,11 +85,12 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_set', (resolve, id, propref, valueref) => {
-			var prop = this.ref_read(propref),
-				value = this.ref_read(valueref),
-				target = this.ref_resolve(id),
-				data, threw;
+		this.ipc.on('ref_set', (resolve, target, prop, value) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			value = this.ref_read(value);
+			
+			var data, threw;
 			
 			try{ data = Reflect.set(target, prop, value)
 			}catch(err){ data = err; threw = true }
@@ -96,26 +98,28 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_apply', (resolve, id, thatref, argsref) => {
-			var that = this.ref_read(thatref),
-				args = this.ref_read(argsref),
-				target = this.ref_resolve(id),
-				good_args = [],
-				data, threw;
+		this.ipc.on('ref_apply', (resolve, target, that, args) => {
+			target = this.ref_resolve(target);
+			that = this.ref_read(that);
+			args = this.ref_read(args);
 			
-			if(args.length)good_args = [...args];
+			if(args.length)args = [...args];
+			else args = [];
 			
-			try{ data = Reflect.apply(target, that, good_args)
+			var data, threw;
+			
+			try{ data = Reflect.apply(target, that, args)
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_construct', (resolve, id, args_ref, new_target_ref) => {
-			var args = [...this.ref_read(args_ref)],
-				new_target = this.ref_read(new_target_ref),
-				target = this.ref_resolve(id),
-				data, threw;
+		this.ipc.on('ref_construct', (resolve, target, args, new_target) => {
+			args = [...this.ref_read(args)];
+			new_target = this.ref_read(new_target);
+			target = this.ref_resolve(target);
+			
+			var data, threw;
 			
 			try{ data = Reflect.construct(target, args, new_target)
 			}catch(err){ data = err; threw = true }
@@ -123,10 +127,13 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_has', (resolve, id, propref) => {
+		this.ipc.on('ref_has', (resolve, target, prop) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			
 			var data, threw;
 			
-			try{ data = Reflect.has(this.ref_resolve(id), this.ref_read(propref))
+			try{ data = Reflect.has(target, prop)
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
@@ -159,7 +166,7 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_desc', (resolve, id, propref) => {
+		this.ipc.on('ref_get_desc', (resolve, id, propref) => {
 			var desc = Reflect.getOwnPropertyDescriptor(this.ref_resolve(id), this.ref_read(propref));
 			
 			resolve(desc ? {
@@ -247,9 +254,9 @@ class Bridge {
 	}
 	native_error(data){
 		if(data instanceof this.host.context.Error){
-			let newe = new(data.name in globalThis ? globalThis[data.name] : Error)(data.message + data.stack);
+			let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
 			
-			return newe;
+			return data.name + ': ' + data.message + '\n' + data.stack;
 		}
 		
 		return data;
