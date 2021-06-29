@@ -11,13 +11,13 @@ class Host {
 		
 		Object.assign(this.ready = new Promise((resolve, reject) => promise = { resolve, reject }), promise);
 		
-		this.registery = new Bridge(this);
+		this.bridge = new Bridge(this);
 		
-		this.registery.ref_create(globalThis);
-		this.registery.ref_create(this);
+		this.bridge.ref_create(globalThis);
+		this.bridge.ref_create(this);
 		
-		this.context = this.registery.ref_handle(1);
-		this.global = this.registery.ref_handle(2);
+		this.context = this.bridge.ref_handle(1);
+		this.global = this.bridge.ref_handle(2);
 		
 		this.ipc.on('ready', () => {
 			this.ready.resolve();
@@ -28,21 +28,21 @@ class Host {
 	}
 	eval(x, ...args){
 		if(typeof x == 'function'){
-			let ret = this.registery.ref_read(this.ipc.post('eval', '(' + x + ')'));
+			let ret = this.bridge.ref_read(this.ipc.post('eval', '(' + x + ')'));
 			
 			// SyntaxError
-			if(ret.thrown)throw this.registery.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native_error(ret.data);
 			
 			try{
 				return ret.data(...args);
 			}catch(err){
 				console.log(err);
-				throw this.registery.native_error(err);
+				throw this.bridge.native_error(err);
 			}
 		}else{
-			let ret = this.registery.ref_read(this.ipc.post('eval', x));
+			let ret = this.bridge.ref_read(this.ipc.post('eval', x));
 			
-			if(ret.thrown)throw this.registery.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native_error(ret.data);
 			
 			return ret.data;
 		}

@@ -155,10 +155,19 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_proto', (resolve, id) => {
+		this.ipc.on('ref_get_proto', (resolve, id) => {
 			var data, threw;
 			
 			try{ data = Reflect.getPrototypeOf(this.ref_resolve(id))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_set_proto', (resolve, id, value) => {
+			var data, threw;
+			
+			try{ data = Reflect.setPrototypeOf(this.ref_resolve(id), this.ref_read(value))
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
@@ -199,7 +208,7 @@ class Bridge {
 		return this.refs.get(id);
 	}
 	ref_create(data, exception = false){
-		var ret = [ typeof data, data, data == null, exception ];
+		var ret = [ typeof data, data, exception ];
 		
 		for(let [ id, dt ] of this.refs)if(data === dt){
 			ret[1] = id;
@@ -223,6 +232,13 @@ class Bridge {
 			console.warn('Could not create symbol:', data);
 		}
 		
+		if(data === null){
+			ret[0] = 'json';
+			ret[1] = null;
+			
+			return ret;
+		}
+		
 		if(!this.needs_handle.includes(typeof data))return ret;
 		
 		ret[1] = this.refs.size;
@@ -231,21 +247,22 @@ class Bridge {
 		
 		return ret;
 	}
-	ref_read([ type, id, is_null, is_exception ], can_throw){
+	ref_read([ type, id, is_exception ], can_throw){
 		var data;
 		
-		if(is_null)data = null;
+		if(type == 'undefined')data = undefined;
 		else if(type == 'symbol_res' && typeof id == 'string')data = Symbol[id];
 		else if(type == 'ref')data = this.ref_resolve(id);
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw data;
+		if(is_exception && can_throw)throw this.native_error(data);
 		else return data;
 	}
 	// resolve a local reference
 	ref_handle(id, type = 'object'){
-		var proxy = new Proxy(type == 'function' ? this.base_func : this.base_obj, new Handle(this, id));
+		var target = type == 'function' ? this.base_func : this.base_obj,
+			proxy = new Proxy(target, new Handle(this, id, target));
 		
 		this.proxies.set(proxy, id);
 		
@@ -341,9 +358,10 @@ module.exports = Events;
 
 
 class Handle {
-	constructor(host, id){
+	constructor(host, id, base){
 		this.host = host;
 		this.id = id;
+		this.base = base;
 	}
 	apply(target, that, args){
 		return this.host.ref_read(this.host.ipc.post('ref_apply', this.id, this.host.ref_create(that), args.length ? this.host.ref_create(args) : [ 'json', [] ]), true);
@@ -361,16 +379,16 @@ class Handle {
 		return this.host.ipc.post('ref_desc', this.id, this.host.ref_create(prop)) || undefined;
 	}
 	getPrototypeOf(target){
-		return this.host.ref_read(this.host.ipc.post('ref_proto', this.id), true);
+		return this.host.ref_read(this.host.ipc.post('ref_get_proto', this.id), true);
 	}
 	setPrototypeOf(target, value){
-		
+		return this.host.ref_read(this.host.ipc.post('ref_set_proto', this.id, this.host.ref_create(value)), true);
 	}
 	has(target, prop){
 		return this.host.ipc.post('ref_has', this.id, this.host.ref_create(prop));
 	}
 	ownKeys(target){
-		return [...this.host.ref_read(this.host.ipc.post('ref_ownkeys', this.id), true)];
+		return [...new Set([...this.host.ref_read(this.host.ipc.post('ref_ownkeys', this.id), true)].concat(Reflect.ownKeys(this.base)))];
 	}
 };
 
@@ -398,13 +416,13 @@ class Host {
 		
 		Object.assign(this.ready = new Promise((resolve, reject) => promise = { resolve, reject }), promise);
 		
-		this.registery = new Bridge(this);
+		this.bridge = new Bridge(this);
 		
-		this.registery.ref_create(globalThis);
-		this.registery.ref_create(this);
+		this.bridge.ref_create(globalThis);
+		this.bridge.ref_create(this);
 		
-		this.context = this.registery.ref_handle(1);
-		this.global = this.registery.ref_handle(2);
+		this.context = this.bridge.ref_handle(1);
+		this.global = this.bridge.ref_handle(2);
 		
 		this.ipc.on('ready', () => {
 			this.ready.resolve();
@@ -415,21 +433,21 @@ class Host {
 	}
 	eval(x, ...args){
 		if(typeof x == 'function'){
-			let ret = this.registery.ref_read(this.ipc.post('eval', '(' + x + ')'));
+			let ret = this.bridge.ref_read(this.ipc.post('eval', '(' + x + ')'));
 			
 			// SyntaxError
-			if(ret.thrown)throw this.registery.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native_error(ret.data);
 			
 			try{
 				return ret.data(...args);
 			}catch(err){
 				console.log(err);
-				throw this.registery.native_error(err);
+				throw this.bridge.native_error(err);
 			}
 		}else{
-			let ret = this.registery.ref_read(this.ipc.post('eval', x));
+			let ret = this.bridge.ref_read(this.ipc.post('eval', x));
 			
-			if(ret.thrown)throw this.registery.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native_error(ret.data);
 			
 			return ret.data;
 		}

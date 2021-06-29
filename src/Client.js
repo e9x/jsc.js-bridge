@@ -13,9 +13,15 @@ class Client extends Host {
 		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
 		
 		this.ready.then(() => {
-			var cons = this.global.console;
+			var cons = this.context.console;
 			
-			for(let prop of Reflect.ownKeys(cons))globalThis.console[prop] = (...data) => cons[prop]('[SUB]', ...data.map(data => this.registery.global.native_error(data)));
+			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
+				try{
+					cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native_error(data)))
+				}catch(err){
+					console_log(err + '');
+				}
+			}) : cons[prop].bind(cons, '[SUB]');
 		});
 	}
 };

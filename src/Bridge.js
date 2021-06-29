@@ -131,10 +131,19 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_proto', (resolve, id) => {
+		this.ipc.on('ref_get_proto', (resolve, id) => {
 			var data, threw;
 			
 			try{ data = Reflect.getPrototypeOf(this.ref_resolve(id))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_set_proto', (resolve, id, value) => {
+			var data, threw;
+			
+			try{ data = Reflect.setPrototypeOf(this.ref_resolve(id), this.ref_read(value))
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
@@ -175,7 +184,7 @@ class Bridge {
 		return this.refs.get(id);
 	}
 	ref_create(data, exception = false){
-		var ret = [ typeof data, data, data == null, exception ];
+		var ret = [ typeof data, data, exception ];
 		
 		for(let [ id, dt ] of this.refs)if(data === dt){
 			ret[1] = id;
@@ -199,6 +208,13 @@ class Bridge {
 			console.warn('Could not create symbol:', data);
 		}
 		
+		if(data === null){
+			ret[0] = 'json';
+			ret[1] = null;
+			
+			return ret;
+		}
+		
 		if(!this.needs_handle.includes(typeof data))return ret;
 		
 		ret[1] = this.refs.size;
@@ -207,21 +223,22 @@ class Bridge {
 		
 		return ret;
 	}
-	ref_read([ type, id, is_null, is_exception ], can_throw){
+	ref_read([ type, id, is_exception ], can_throw){
 		var data;
 		
-		if(is_null)data = null;
+		if(type == 'undefined')data = undefined;
 		else if(type == 'symbol_res' && typeof id == 'string')data = Symbol[id];
 		else if(type == 'ref')data = this.ref_resolve(id);
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw data;
+		if(is_exception && can_throw)throw this.native_error(data);
 		else return data;
 	}
 	// resolve a local reference
 	ref_handle(id, type = 'object'){
-		var proxy = new Proxy(type == 'function' ? this.base_func : this.base_obj, new Handle(this, id));
+		var target = type == 'function' ? this.base_func : this.base_obj,
+			proxy = new Proxy(target, new Handle(this, id, target));
 		
 		this.proxies.set(proxy, id);
 		

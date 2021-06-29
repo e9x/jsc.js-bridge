@@ -17,6 +17,11 @@ var main = () => {
 		
 		dom.querySelector('.project-tagline').innerHTML = '<pre>This page was not loaded directly from the main JS context.\nExplore the context bridge using devtools.</pre>';
 		
+		dom.querySelector('.main-content').innerHTML = [
+			`<h2>Demos:</h2>`
+			`<a href='./securing-code'><p>Loading bytecode and extending HTML elements</p></a>`,
+		].join('\n');
+		
 		JSC.context.document.documentElement.innerHTML = dom.documentElement.innerHTML;
 	});
 };
