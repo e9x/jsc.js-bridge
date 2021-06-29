@@ -7,21 +7,13 @@ var textarea = document.querySelector('.output'),
 		console.log('hi');
 		
 		class secure_class extends JSC.context.HTMLElement {
-			constructor(){
-				super();
-				
+			connectedCallback(){
 				var options = new JSC.context.Object();
 				options.mode = 'closed';
 				
 				var shadow = this.attachShadow(options);
 				
 				console.log(shadow);
-			}
-			connectedCallback(){
-				
-			}
-			disconnectedCallback(){
-				
 			}
 		};
 		

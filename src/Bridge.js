@@ -246,7 +246,7 @@ class Bridge {
 	}
 	native_error(data){
 		if(data instanceof this.host.context.Error){
-			let newe = new(data.name in window ? window[data.name] : Error)(data.message + data.stack);
+			let newe = new(data.name in globalThis ? globalThis[data.name] : Error)(data.message + data.stack);
 			
 			return newe;
 		}
