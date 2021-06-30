@@ -97,13 +97,14 @@ class Bridge {
 			resolve(this.ref_create(ret));
 		});
 		
-		this.ipc.on('ref_get', (resolve, target, prop) => {
+		this.ipc.on('ref_get', (resolve, target, prop, reciever) => {
 			target = this.ref_resolve(target);
 			prop = this.ref_read(prop);
+			reciever = this.ref_read(reciever);
 			
 			var data, threw;
 			
-			try{ data = Reflect.get(target, prop)
+			try{ data = Reflect.get(target, prop, reciever)
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
@@ -190,17 +191,41 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_get_desc', (resolve, id, propref) => {
-			var desc = Reflect.getOwnPropertyDescriptor(this.ref_resolve(id), this.ref_read(propref));
+		this.ipc.on('ref_get_desc', (resolve, target, prop) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
 			
-			resolve(desc ? {
-				writable: desc.writable,
-				configurable: desc.configurable,
-				enumerable: desc.enumerable,
-				value: desc.value ? 'it exists' : undefined,
-				get: desc.get ? this.global.noop : undefined,
-				set: desc.set ? this.global.noop : undefined,
-			} : desc);
+			var data, threw;
+			
+			try{ data = Object.entries(Reflect.getOwnPropertyDescriptor(target, prop))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_set_desc', (resolve, target, prop, value) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			value = this.ref_read(value);
+			
+			var data, threw;
+			
+			try{ data = Reflect.defineProperty(target, prop, Object.fromEntries(value))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_delete_prop', (resolve, target, prop) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			
+			var data, threw;
+			
+			try{ data = Reflect.deleteProperty(target, prop)
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.refs = new Map();
@@ -264,7 +289,7 @@ class Bridge {
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw this.native_error(data);
+		if(is_exception && can_throw)throw this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference
@@ -275,15 +300,6 @@ class Bridge {
 		this.proxies.set(proxy, id);
 		
 		return proxy;
-	}
-	native_error(data){
-		if(data instanceof this.host.context.Error){
-			let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
-			
-			return data.name + ': ' + data.message + '\n' + data.stack;
-		}
-		
-		return data;
 	}
 };
 
@@ -377,20 +393,23 @@ class Handle {
 	construct(target, args, new_target){
 		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args), this.host.ref_create(new_target)), true);
 	}
-	get(target, prop){
-		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop)), true);
+	get(target, prop, reciever){
+		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop), this.host.ref_create(reciever)), true);
 	}
 	set(target, prop, value){
 		return this.host.ref_read(this.host.ipc.post('ref_set', this.id, this.host.ref_create(prop), this.host.ref_create(value)), true);
 	}
 	getOwnPropertyDescriptor(target, prop){
-		return this.host.ipc.post('ref_get_desc', this.id, this.host.ref_create(prop)) || undefined;
-	}
-	defineProperty(target, prop, desc){
+		var desc = this.host.ref_read(this.host.ipc.post('ref_get_desc', this.id, this.host.ref_create(prop)));
 		
+		// use Object.entries and Object.fromEntries to have the object as is, not a proxy or stuffed with getters
+		return typeof desc == 'object' ? Object.fromEntries(desc) : desc;
+	}
+	defineProperty(target, prop, value){
+		return this.host.ref_read(this.host.ipc.post('ref_set_desc', this.id, this.host.ref_create(prop), this.host.ref_create(Object.entries(value))));
 	}
 	deleteProperty(target, prop){
-		
+		return this.host.ref_read(this.host.ipc.post('ref_delete_prop', this.id, this.host.create_ref(), true));
 	}
 	getPrototypeOf(target){
 		return this.host.ref_read(this.host.ipc.post('ref_get_proto', this.id), true);
@@ -441,6 +460,18 @@ class Host {
 		this.ipc.on('ready', () => {
 			this.ready.resolve();
 		});
+		
+		this.native = {
+			error: data => {
+				if(data instanceof this.context.Error){
+					let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
+					
+					return data.name + ': ' + data.message + '\n' + data.stack;
+				}
+				
+				return data;
+			},
+		};
 	}
 	debugger(){
 		this.eval('debugger;');
@@ -450,18 +481,18 @@ class Host {
 			let ret = this.bridge.ref_read(this.ipc.post('eval', '(' + x + ')'));
 			
 			// SyntaxError
-			if(ret.thrown)throw this.bridge.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native.error(ret.data);
 			
 			try{
 				return ret.data(...args);
 			}catch(err){
 				console.log(err);
-				throw this.bridge.native_error(err);
+				throw this.bridge.native.error(err);
 			}
 		}else{
 			let ret = this.bridge.ref_read(this.ipc.post('eval', x));
 			
-			if(ret.thrown)throw this.bridge.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native.error(ret.data);
 			
 			return ret.data;
 		}

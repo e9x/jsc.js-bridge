@@ -34,6 +34,14 @@ Embed the demo code on your website or host it locally
 <script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js?6.27.2021'></script>
 ```
 
+### Demos:
+
+[Compiler](./compiler)
+
+[Secure Input Element](./secure-input)
+
+
+
 ### Calling native functions:
 
 Native functions cannot accept handles. Create a native object and assign your data to it.

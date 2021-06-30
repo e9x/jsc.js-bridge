@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset='utf8' />
+		<link rel='stylesheet' href='./index.css' />
+	</head>
+	<body>
+		<h3>Compiler</h3>
+		<p>Input:</p>
+		<textarea spellcheck='false' class='input' placeholder='Your code here'></textarea>
+		<p>Output</p>
+		<textarea spellcheck='false' class='output' placeholder='Code will load shortly...'></textarea>
+		<a href='../demo/secure-input'><p>View the example result</p></a>
+		<script type='example'>JSC.global.secure_input = function(){
+	if(!(this instanceof JSC.context.HTMLElement))throw new TypeError('Must be called on HTMLElement');
+	
+	var options = new JSC.context.Object();
+	options.mode = 'closed';
+	
+	var shadow = this.attachShadow(options);
+	
+	console.log('Shadow attached.');
+	
+	var input = shadow.appendChild(JSC.context.document.createElement('input'));
+	
+	input.style.width = '100%';
+	
+	var string = '';
+	
+	input.addEventListener('focus', () => {
+		input.value = string;
+		string = '';
+	}, { passive: true });
+	
+	input.addEventListener('blur', () => {
+		string = input.value;
+		input.value = '*'.repeat(string.length);
+	}, { passive: true });
+	
+	
+	Object.defineProperties(this, {
+		placeholder: {
+			get(){
+				return input.placeholder;
+			},
+			set(value){
+				return input.placeholder = value;
+			},
+		},
+		value: {
+			set(value){
+				input.value = value;
+			},
+		},
+	});
+	
+	this.get_value = () => {
+		console.trace('Value accessed');
+		
+		return string;
+	};
+};</script>
+		<script src='../dist/jsc.js'></script>
+		<script src='./index.js'></script>
+	</body>
+</html>

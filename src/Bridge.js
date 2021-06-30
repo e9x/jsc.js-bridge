@@ -73,13 +73,14 @@ class Bridge {
 			resolve(this.ref_create(ret));
 		});
 		
-		this.ipc.on('ref_get', (resolve, target, prop) => {
+		this.ipc.on('ref_get', (resolve, target, prop, reciever) => {
 			target = this.ref_resolve(target);
 			prop = this.ref_read(prop);
+			reciever = this.ref_read(reciever);
 			
 			var data, threw;
 			
-			try{ data = Reflect.get(target, prop)
+			try{ data = Reflect.get(target, prop, reciever)
 			}catch(err){ data = err; threw = true }
 			
 			resolve(this.ref_create(data, threw));
@@ -166,17 +167,41 @@ class Bridge {
 			resolve(this.ref_create(data, threw));
 		});
 		
-		this.ipc.on('ref_get_desc', (resolve, id, propref) => {
-			var desc = Reflect.getOwnPropertyDescriptor(this.ref_resolve(id), this.ref_read(propref));
+		this.ipc.on('ref_get_desc', (resolve, target, prop) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
 			
-			resolve(desc ? {
-				writable: desc.writable,
-				configurable: desc.configurable,
-				enumerable: desc.enumerable,
-				value: desc.value ? 'it exists' : undefined,
-				get: desc.get ? this.global.noop : undefined,
-				set: desc.set ? this.global.noop : undefined,
-			} : desc);
+			var data, threw;
+			
+			try{ data = Object.entries(Reflect.getOwnPropertyDescriptor(target, prop))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_set_desc', (resolve, target, prop, value) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			value = this.ref_read(value);
+			
+			var data, threw;
+			
+			try{ data = Reflect.defineProperty(target, prop, Object.fromEntries(value))
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
+		});
+		
+		this.ipc.on('ref_delete_prop', (resolve, target, prop) => {
+			target = this.ref_resolve(target);
+			prop = this.ref_read(prop);
+			
+			var data, threw;
+			
+			try{ data = Reflect.deleteProperty(target, prop)
+			}catch(err){ data = err; threw = true }
+			
+			resolve(this.ref_create(data, threw));
 		});
 		
 		this.refs = new Map();
@@ -240,7 +265,7 @@ class Bridge {
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw this.native_error(data);
+		if(is_exception && can_throw)throw this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference
@@ -251,15 +276,6 @@ class Bridge {
 		this.proxies.set(proxy, id);
 		
 		return proxy;
-	}
-	native_error(data){
-		if(data instanceof this.host.context.Error){
-			let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
-			
-			return data.name + ': ' + data.message + '\n' + data.stack;
-		}
-		
-		return data;
 	}
 };
 

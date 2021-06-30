@@ -22,6 +22,18 @@ class Host {
 		this.ipc.on('ready', () => {
 			this.ready.resolve();
 		});
+		
+		this.native = {
+			error: data => {
+				if(data instanceof this.context.Error){
+					let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
+					
+					return data.name + ': ' + data.message + '\n' + data.stack;
+				}
+				
+				return data;
+			},
+		};
 	}
 	debugger(){
 		this.eval('debugger;');
@@ -31,18 +43,18 @@ class Host {
 			let ret = this.bridge.ref_read(this.ipc.post('eval', '(' + x + ')'));
 			
 			// SyntaxError
-			if(ret.thrown)throw this.bridge.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native.error(ret.data);
 			
 			try{
 				return ret.data(...args);
 			}catch(err){
 				console.log(err);
-				throw this.bridge.native_error(err);
+				throw this.bridge.native.error(err);
 			}
 		}else{
 			let ret = this.bridge.ref_read(this.ipc.post('eval', x));
 			
-			if(ret.thrown)throw this.bridge.native_error(ret.data);
+			if(ret.thrown)throw this.bridge.native.error(ret.data);
 			
 			return ret.data;
 		}

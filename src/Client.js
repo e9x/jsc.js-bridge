@@ -17,7 +17,7 @@ class Client extends Host {
 			
 			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
 				try{
-					cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native_error(data)))
+					cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native.error(data)))
 				}catch(err){
 					console_log(err + '');
 				}
