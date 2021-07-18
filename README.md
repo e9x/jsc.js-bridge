@@ -132,7 +132,7 @@ var BYTECODE = JSC.bytecode.compile(() => {
 // Load the bytecode
 JSC.bytecode.load(BYTECODE);
 
-console.log(JSC.global.private_function.toString()); // "function hash"
+console.log(JSC.private_function.toString()); // "function hash"
 
 // Calling toString on the function generated from bytecode no longer returns the source which means our hash function is secure.
 ```
