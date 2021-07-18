@@ -22,3 +22,4 @@ vsproj/.vs/
 vsproj/x64/
 *.sln
 *.cache
+*.filters

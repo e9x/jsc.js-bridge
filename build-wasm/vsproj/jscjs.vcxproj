@@ -21,6 +21,9 @@
   <ItemGroup>
     <ClCompile Include="..\Source\JavaScriptCore\JSCJS\jscjs.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\Source\JavaScriptCore\JSCJS\jscjs.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
