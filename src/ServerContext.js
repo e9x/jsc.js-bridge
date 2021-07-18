@@ -19,12 +19,6 @@ class ServerContext extends Host {
 		
 		this.$.send('ready');
 	}
-	destroy(){
-		// Unallocate props etc in C++
-		this.$.destroy();
-		
-		this.$.delete();
-	}
 }
 
 module.exports = ServerContext;

@@ -12,8 +12,8 @@ class ClientContext extends Host {
 			send(...data){
 				jsc_emit(JSON.stringify([ this.id, ...data ]));
 			},
-			destroy(){
-				throw new Error('Cannot destroy the server context.');
+			delete(){
+				throw new Error('Cannot delete the server context.');
 			},
 			compile_bytecode(){
 				throw new Error('Cannot compile server bytecode.');

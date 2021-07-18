@@ -94,6 +94,9 @@ class Host extends Events {
 	json(data){
 		return this.bridge.JSON.parse(JSON.stringify(data));
 	}
+	destroy(){
+		this.$.delete();
+	}
 };
 
 module.exports = Host;

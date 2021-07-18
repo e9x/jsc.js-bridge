@@ -220,12 +220,10 @@ public:
 
 		return bytecodeToStr(bytecode);
 	}
-	bool destroy() {
+	~EMJSCJS() {
 		// JSContextDestroy(ctx);
 
 		JSGlobalContextRelease(JSContextGetGlobalContext(ctx));
-
-		return true;
 	}
 };
 
