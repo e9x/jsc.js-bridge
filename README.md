@@ -32,7 +32,7 @@ Embed the dist code on your website or host it locally
 
 ### Demos
 
-[Secure Input Element](./secure-input)
+[Secure Input Element](./demos/secure-input)
 
 ### Calling native functions
 
