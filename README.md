@@ -15,8 +15,8 @@ Inspired by [Electron's remote module](https://github.com/electron/remote) and [
 
 ### Todo
 
-- Updating JavaScriptCore
-- Storing references as WeakRefs
+- Update JavaScriptCore
+- Store references as WeakRefs
 
 ## Usage
 
