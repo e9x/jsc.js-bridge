@@ -1,50 +1,42 @@
 'use strict';
 
 var current = typeof document == 'object' && document.currentScript ? document.currentScript.src : 'https://e9x.github.io/jsc.js-bridge/dist/',
-	Host = require('./Host');
+	Context = require('./ServerContext'),
+	Base = require('./Base');
 
-class Server extends Host {
+class Server extends Base {
 	constructor(){
-		super((...data) => this.Module.eval(`JSC.ipc.emit(...${JSON.stringify(data)})`));
-		
-		this.ipc.on('log', console.log.bind(console, '[WASM]'));
+		super();
 		
 		this.create_module();
 		
-		this.ready.then(() => this.ipc.send('ready'));
+		var self = this;
 		
-		this.bytecode = {
-			compile: src => {
-				var hex = this.Module.compile_bytecode(src),
-					arr = new Uint8Array(hex.length / 2);
-				
-				for(let index = 0; index < hex.length; index += 2){
-					arr[index / 2] = parseInt(hex.substr(index, 2), 16);
-				}
-					
-				return arr;
-			},
-			load: src => {
-				if(Array.isArray(src))src = new Uint8Array(src);
-				else if(src instanceof ArrayBuffer)src = new Uint8Array(src);
-				else if(!(src instanceof Uint8Array))throw new TypeError('JSC.bytecode.load only accepts: ArrayBuffer, Uint8Array, Array');
-				
-				if(!src.byteLength)throw new Error('Invalid bytecode');
-				
-				var hex = '';
-				
-				for(let byte of src)hex += (byte & 0xff).toString(16).toUpperCase().padStart(2, 0);
-				
-				// TODO: return handle id
-				this.Module.eval_bytecode(hex);
-			},
-		};
+		this.Context = class extends Context {
+			constructor(){
+				super(self);
+			}
+		}
+		
+		var res;
+		
+		var fetch_p = fetch(new URL(client_file, current)).then(async res => {
+			this.client_js = await res.text();
+		});
+		
+		this.ready = new Promise((resolve, reject) => res = async () => {
+			await fetch_p;
+			
+			resolve();
+		});
+		
+		this.ready.resolve = res;
+		
+		// this.ready.then(() => this.ipc.send('ready'));
 	}
 	create_module(){
 		this.Module = {
 			postRun: async () => {
-				// Load the client script.
-				this.Module.eval(await(await fetch(new URL(client_file, current))).text());
 				
 				this.ready.resolve();
 			},

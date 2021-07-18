@@ -1,22 +1,379 @@
 var JSC;
 /******/ (() => { // webpackBootstrap
-/******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
-/***/ "./Bridge.js":
+/***/ "./Base.js":
+/*!*****************!*\
+  !*** ./Base.js ***!
+  \*****************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+var Events = __webpack_require__(/*! ./Events */ "./Events.js");
+
+class Base {
+	constructor(){
+		// event pool, across multiple contexts
+		this.eventp = new Events();
+	}
+};
+
+module.exports = Base;
+
+/***/ }),
+
+/***/ "./Client.js":
 /*!*******************!*\
-  !*** ./Bridge.js ***!
+  !*** ./Client.js ***!
   \*******************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
+"use strict";
+
+
+var Base = __webpack_require__(/*! ./Base */ "./Base.js"),
+	IPC = __webpack_require__(/*! ./IPC */ "./IPC.js"),
+	Context = __webpack_require__(/*! ./ClientContext */ "./ClientContext.js");
+
+class Client extends Base {
+	constructor(){
+		super();
+		
+		var jsc_emit = globalThis.jsc_emit;
+		
+		delete globalThis.jsc_emit;
+		
+		this.context = new Context(this, CONTEXT_ID, jsc_emit);
+	}
+};
+
+module.exports = new Client();
+
+/***/ }),
+
+/***/ "./ClientContext.js":
+/*!**************************!*\
+  !*** ./ClientContext.js ***!
+  \**************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var Host = __webpack_require__(/*! ./Host */ "./Host.js");
+
+class ClientContext extends Host {
+	constructor(server, id, jsc_emit){
+		super({
+			eval: () => {
+				
+			},
+			id,
+			send(...data){
+				jsc_emit(JSON.stringify([ this.id, ...data ]));
+			},
+		});
+		
+		/*
+		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
+		
+		// this.ready.then(() => {
+		var cons = this.context.console;
+		
+		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
+			try{
+				cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native.error(data)))
+			}catch(err){
+				console_log(err + '');
+			}
+		}) : cons[prop].bind(cons, '[SUB]');
+		// });
+		*/
+	}
+}
+
+module.exports = ClientContext;
+
+/***/ }),
+
+/***/ "./Events.js":
+/*!*******************!*\
+  !*** ./Events.js ***!
+  \*******************/
+/***/ ((module) => {
+
+"use strict";
+
+
+class Events {
+	static resolve_list(target, event){
+		if(!this.listeners)this.listeners = Symbol();
+		
+		var events = (target[Events.listeners] || (target[Events.listeners] = {}))[event] || (target[Events.listeners][event] = []);
+		
+		if(!events.merged){
+			events.merged = true;
+			
+			if(target.constructor.hasOwnProperty(Events.listeners))events.push(...Events.resolve_list(target.constructor, event));
+		}
+		
+		return events;
+	};
+	on(event, callback){
+		Events.resolve_list(this, event).push(callback);
+	}
+	once(event, callback){
+		var cb = (...data) => {
+			this.off(event, cb);
+			callback.call(this, ...data)
+		};
+		
+		cb[Events.original_func] = callback;
+		
+		this.on(event, callback);
+	}
+	off(event, callback){
+		if(typeof callback != 'function')throw new Error('callback is not a function');
+		
+		if(callback[Events.original_func])callback = callback[Events.original_func];
+		
+		var list = Events.resolve_list(this, event), ind = list.indexOf(callback);
+		
+		if(ind != -1)list.splice(ind, 1);
+		
+		if(!list.length)delete this[Events.listeners][event];
+	}
+	emit(event, ...data){
+		var list = Events.resolve_list(this, event);
+		
+		if(!list.length){
+			delete this[Events.listeners][event];
+			if(event == 'error')throw data[0];
+		}else for(var item of list)try{
+			item.call(this, ...data);
+		}catch(err){
+			this.emit('error', err);
+		}
+	}
+};
+
+module.exports = Events;
+
+/***/ }),
+
+/***/ "./Handle.js":
+/*!*******************!*\
+  !*** ./Handle.js ***!
+  \*******************/
+/***/ ((module) => {
+
+"use strict";
+
+
+class Handle {
+	constructor(host, id, base){
+		this.host = host;
+		this.id = id;
+		this.base = base;
+	}
+	apply(target, that, args){
+		return this.host.ref_read(this.host.ipc.post('ref_apply', this.id, this.host.ref_create(that), args.length ? this.host.ref_create(args) : [ 'json', [] ]), true);
+	}
+	construct(target, args, new_target){
+		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args), this.host.ref_create(new_target)), true);
+	}
+	get(target, prop, reciever){
+		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop), this.host.ref_create(reciever)), true);
+	}
+	set(target, prop, value){
+		return this.host.ref_read(this.host.ipc.post('ref_set', this.id, this.host.ref_create(prop), this.host.ref_create(value)), true);
+	}
+	getOwnPropertyDescriptor(target, prop){
+		var desc = this.host.ref_read(this.host.ipc.post('ref_get_desc', this.id, this.host.ref_create(prop)));
+		
+		// use Object.entries and Object.fromEntries to have the object as is, not a proxy or stuffed with getters
+		return typeof desc == 'object' ? Object.fromEntries(desc) : desc;
+	}
+	defineProperty(target, prop, value){
+		return this.host.ref_read(this.host.ipc.post('ref_set_desc', this.id, this.host.ref_create(prop), this.host.ref_create(Object.entries(value))));
+	}
+	deleteProperty(target, prop){
+		return this.host.ref_read(this.host.ipc.post('ref_delete_prop', this.id, this.host.create_ref(), true));
+	}
+	getPrototypeOf(target){
+		return this.host.ref_read(this.host.ipc.post('ref_get_proto', this.id), true);
+	}
+	setPrototypeOf(target, value){
+		return this.host.ref_read(this.host.ipc.post('ref_set_proto', this.id, this.host.ref_create(value)), true);
+	}
+	has(target, prop){
+		return this.host.ipc.post('ref_has', this.id, this.host.ref_create(prop));
+	}
+	ownKeys(target){
+		return [...new Set([...this.host.ref_read(this.host.ipc.post('ref_ownkeys', this.id), true)].concat(Reflect.ownKeys(this.base)))];
+	}
+};
+
+module.exports = Handle;
+
+/***/ }),
+
+/***/ "./Host.js":
+/*!*****************!*\
+  !*** ./Host.js ***!
+  \*****************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var Refs = __webpack_require__(/*! ./Refs */ "./Refs.js"),
+	Events = __webpack_require__(/*! ./Events */ "./Events.js"),
+	IPC = __webpack_require__(/*! ./IPC */ "./IPC.js");
+
+class Host extends Events {
+	constructor($){
+		super();
+		
+		this.$ = $;
+		
+		this.ipc = new IPC(this.$.send.bind(this.$));
+		
+		this.refs = new Refs(this.ipc);
+		
+		this.refs.ref_create(globalThis);
+		this.refs.ref_create(this);
+		
+		this.bridge = this.refs.ref_handle(1);
+		this.global = this.refs.ref_handle(2);
+		
+		/*this.ipc.on('ready', () => {
+			this.ready.resolve();
+		});*/
+		
+		this.native = {
+			error: data => {
+				if(data instanceof this.bridge.Error){
+					let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
+					
+					return data.name + ': ' + data.message + '\n' + data.stack;
+				}
+				
+				return data;
+			},
+		};
+		
+		this.bytecode = {
+			compile: src => {
+				var hex = this.$.compile_bytecode(src),
+					arr = new Uint8Array(hex.length / 2);
+				
+				for(let index = 0; index < hex.length; index += 2){
+					arr[index / 2] = parseInt(hex.substr(index, 2), 16);
+				}
+					
+				return arr;
+			},
+			load: src => {
+				if(Array.isArray(src))src = new Uint8Array(src);
+				else if(src instanceof ArrayBuffer)src = new Uint8Array(src);
+				else if(!(src instanceof Uint8Array))throw new TypeError('JSC.bytecode.load only accepts: ArrayBuffer, Uint8Array, Array');
+				
+				if(!src.byteLength)throw new Error('Invalid bytecode');
+				
+				var hex = '';
+				
+				for(let byte of src)hex += (byte & 0xff).toString(16).toUpperCase().padStart(2, 0);
+				
+				// TODO: return handle id
+				this.$.eval_bytecode(hex);
+			},
+		};
+	}
+	debugger(){
+		this.eval('debugger;');
+	}
+	execute(x, ...args){
+		if(typeof x == 'function'){
+			let ret = this.refs.ref_read(this.ipc.post('eval', '(' + x + ')'));
+			
+			// SyntaxError
+			if(ret.thrown)throw this.refs.native.error(ret.data);
+			
+			try{
+				return ret.data(...args);
+			}catch(err){
+				console.log(err);
+				throw this.refs.native.error(err);
+			}
+		}else{
+			let ret = this.refs.ref_read(this.ipc.post('eval', x));
+			
+			if(ret.thrown)throw this.native.error(ret.data);
+			
+			return ret.data;
+		}
+	}
+	// create a parallel json object for sending to native functions such as MutationObserver.observe.
+	json(data){
+		return this.bridge.JSON.parse(JSON.stringify(data));
+	}
+};
+
+module.exports = Host;
+
+/***/ }),
+
+/***/ "./IPC.js":
+/*!****************!*\
+  !*** ./IPC.js ***!
+  \****************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var Events = __webpack_require__(/*! ./Events */ "./Events.js");
+
+class IPC extends Events {
+	constructor(send){
+		super();
+		
+		this.send = send;
+		
+		this.on('post', (id, event, ...data) => {
+			this.emit(event, data => this.send(id, data), ...data);
+		});
+	}
+	post(...data){
+		var id = Math.random(),
+			ret;
+		
+		this.once(id, data => ret = data);
+		
+		this.send('post', id, ...data);
+		
+		return ret;
+	}
+};
+
+module.exports = IPC;
+
+/***/ }),
+
+/***/ "./Refs.js":
+/*!*****************!*\
+  !*** ./Refs.js ***!
+  \*****************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
 
 
 var Handle = __webpack_require__(/*! ./Handle */ "./Handle.js");
 
-class Bridge {
-	constructor(host){
-		this.host = host;
-		this.ipc = this.host.ipc;
+class Refs {
+	constructor(ipc){
+		this.ipc = ipc;
 		
 		this.base_func = Object.setPrototypeOf(function(){}, null);
 		
@@ -276,7 +633,7 @@ class Bridge {
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw this.host.native.error(data);
+		if(is_exception && can_throw)throw data;// TODO: FIX this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference
@@ -290,278 +647,7 @@ class Bridge {
 	}
 };
 
-module.exports = Bridge;
-
-/***/ }),
-
-/***/ "./Client.js":
-/*!*******************!*\
-  !*** ./Client.js ***!
-  \*******************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-
-
-var Host = __webpack_require__(/*! ./Host */ "./Host.js");
-
-class Client extends Host {
-	constructor(){
-		var jsc_emit = globalThis.jsc_emit;
-		
-		delete globalThis.jsc_emit;
-		
-		super((...data) => jsc_emit(JSON.stringify(data)));
-		
-		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
-		
-		this.ready.then(() => {
-			var cons = this.context.console;
-			
-			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
-				try{
-					cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native.error(data)))
-				}catch(err){
-					console_log(err + '');
-				}
-			}) : cons[prop].bind(cons, '[SUB]');
-		});
-	}
-};
-
-module.exports = new Client();
-
-/***/ }),
-
-/***/ "./Events.js":
-/*!*******************!*\
-  !*** ./Events.js ***!
-  \*******************/
-/***/ ((module) => {
-
-
-
-class Events {
-	static resolve_list(target, event){
-		if(!this.listeners)this.listeners = Symbol();
-		
-		var events = (target[Events.listeners] || (target[Events.listeners] = {}))[event] || (target[Events.listeners][event] = []);
-		
-		if(!events.merged){
-			events.merged = true;
-			
-			if(target.constructor.hasOwnProperty(Events.listeners))events.push(...Events.resolve_list(target.constructor, event));
-		}
-		
-		return events;
-	};
-	on(event, callback){
-		Events.resolve_list(this, event).push(callback);
-	}
-	once(event, callback){
-		var cb = (...data) => {
-			this.off(event, cb);
-			callback.call(this, ...data)
-		};
-		
-		cb[Events.original_func] = callback;
-		
-		this.on(event, callback);
-	}
-	off(event, callback){
-		if(typeof callback != 'function')throw new Error('callback is not a function');
-		
-		if(callback[Events.original_func])callback = callback[Events.original_func];
-		
-		var list = Events.resolve_list(this, event), ind = list.indexOf(callback);
-		
-		if(ind != -1)list.splice(ind, 1);
-		
-		if(!list.length)delete this[Events.listeners][event];
-	}
-	emit(event, ...data){
-		var list = Events.resolve_list(this, event);
-		
-		if(!list.length){
-			delete this[Events.listeners][event];
-			if(event == 'error')throw data[0];
-		}else for(var item of list)try{
-			item.call(this, ...data);
-		}catch(err){
-			this.emit('error', err);
-		}
-	}
-};
-
-module.exports = Events;
-
-/***/ }),
-
-/***/ "./Handle.js":
-/*!*******************!*\
-  !*** ./Handle.js ***!
-  \*******************/
-/***/ ((module) => {
-
-
-
-class Handle {
-	constructor(host, id, base){
-		this.host = host;
-		this.id = id;
-		this.base = base;
-	}
-	apply(target, that, args){
-		return this.host.ref_read(this.host.ipc.post('ref_apply', this.id, this.host.ref_create(that), args.length ? this.host.ref_create(args) : [ 'json', [] ]), true);
-	}
-	construct(target, args, new_target){
-		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args), this.host.ref_create(new_target)), true);
-	}
-	get(target, prop, reciever){
-		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop), this.host.ref_create(reciever)), true);
-	}
-	set(target, prop, value){
-		return this.host.ref_read(this.host.ipc.post('ref_set', this.id, this.host.ref_create(prop), this.host.ref_create(value)), true);
-	}
-	getOwnPropertyDescriptor(target, prop){
-		var desc = this.host.ref_read(this.host.ipc.post('ref_get_desc', this.id, this.host.ref_create(prop)));
-		
-		// use Object.entries and Object.fromEntries to have the object as is, not a proxy or stuffed with getters
-		return typeof desc == 'object' ? Object.fromEntries(desc) : desc;
-	}
-	defineProperty(target, prop, value){
-		return this.host.ref_read(this.host.ipc.post('ref_set_desc', this.id, this.host.ref_create(prop), this.host.ref_create(Object.entries(value))));
-	}
-	deleteProperty(target, prop){
-		return this.host.ref_read(this.host.ipc.post('ref_delete_prop', this.id, this.host.create_ref(), true));
-	}
-	getPrototypeOf(target){
-		return this.host.ref_read(this.host.ipc.post('ref_get_proto', this.id), true);
-	}
-	setPrototypeOf(target, value){
-		return this.host.ref_read(this.host.ipc.post('ref_set_proto', this.id, this.host.ref_create(value)), true);
-	}
-	has(target, prop){
-		return this.host.ipc.post('ref_has', this.id, this.host.ref_create(prop));
-	}
-	ownKeys(target){
-		return [...new Set([...this.host.ref_read(this.host.ipc.post('ref_ownkeys', this.id), true)].concat(Reflect.ownKeys(this.base)))];
-	}
-};
-
-module.exports = Handle;
-
-/***/ }),
-
-/***/ "./Host.js":
-/*!*****************!*\
-  !*** ./Host.js ***!
-  \*****************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-
-
-var Bridge = __webpack_require__(/*! ./Bridge */ "./Bridge.js"),
-	IPC = __webpack_require__(/*! ./IPC */ "./IPC.js");
-
-class Host {
-	constructor(ipc_send){
-		this.ipc = new IPC(ipc_send);
-		
-		var promise = {};
-		
-		Object.assign(this.ready = new Promise((resolve, reject) => promise = { resolve, reject }), promise);
-		
-		this.bridge = new Bridge(this);
-		
-		this.bridge.ref_create(globalThis);
-		this.bridge.ref_create(this);
-		
-		this.context = this.bridge.ref_handle(1);
-		this.global = this.bridge.ref_handle(2);
-		
-		this.ipc.on('ready', () => {
-			this.ready.resolve();
-		});
-		
-		this.native = {
-			error: data => {
-				if(data instanceof this.context.Error){
-					let newe = new (data.name in globalThis ? globalThis[data.name] : Error)();
-					
-					return data.name + ': ' + data.message + '\n' + data.stack;
-				}
-				
-				return data;
-			},
-		};
-	}
-	debugger(){
-		this.eval('debugger;');
-	}
-	eval(x, ...args){
-		if(typeof x == 'function'){
-			let ret = this.bridge.ref_read(this.ipc.post('eval', '(' + x + ')'));
-			
-			// SyntaxError
-			if(ret.thrown)throw this.bridge.native.error(ret.data);
-			
-			try{
-				return ret.data(...args);
-			}catch(err){
-				console.log(err);
-				throw this.bridge.native.error(err);
-			}
-		}else{
-			let ret = this.bridge.ref_read(this.ipc.post('eval', x));
-			
-			if(ret.thrown)throw this.bridge.native.error(ret.data);
-			
-			return ret.data;
-		}
-	}
-	json(data){
-		// create a parallel json object for sending to native functions like mutationobserver.observe options
-		return this.context.JSON.parse(JSON.stringify(data));
-	}
-};
-
-module.exports = Host;
-
-/***/ }),
-
-/***/ "./IPC.js":
-/*!****************!*\
-  !*** ./IPC.js ***!
-  \****************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-
-
-var Events = __webpack_require__(/*! ./Events */ "./Events.js");
-
-class IPC extends Events {
-	constructor(send){
-		super();
-		
-		this.send = send;
-		
-		this.on('post', (id, event, ...data) => {
-			this.emit(event, data => this.send(id, data), ...data);
-		});
-	}
-	post(...data){
-		var id = Math.random(),
-			ret;
-		
-		this.once(id, data => ret = data);
-		
-		this.send('post', id, ...data);
-		
-		return ret;
-	}
-};
-
-module.exports = IPC;
+module.exports = Refs;
 
 /***/ })
 

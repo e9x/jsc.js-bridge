@@ -151,6 +151,8 @@ config("executable_ldconfig") {
     if (target_os == "wasm") {
         ldflags = [
             "--bind",
+            # debugging
+             "-g3", # "-gsource-map",
             "-s", # "NO_EXIT_RUNTIME=1",
             # "-s", "EXPORTED_FUNCTIONS=['_jsc_eval', '_jsc_compile', '_jsc_eval_bytecode']",
             "-s", "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']",

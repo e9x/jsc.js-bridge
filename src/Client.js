@@ -1,28 +1,18 @@
 'use strict';
 
-var Host = require('./Host');
+var Base = require('./Base'),
+	IPC = require('./IPC'),
+	Context = require('./ClientContext');
 
-class Client extends Host {
+class Client extends Base {
 	constructor(){
+		super();
+		
 		var jsc_emit = globalThis.jsc_emit;
 		
 		delete globalThis.jsc_emit;
 		
-		super((...data) => jsc_emit(JSON.stringify(data)));
-		
-		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
-		
-		this.ready.then(() => {
-			var cons = this.context.console;
-			
-			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
-				try{
-					cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native.error(data)))
-				}catch(err){
-					console_log(err + '');
-				}
-			}) : cons[prop].bind(cons, '[SUB]');
-		});
+		this.context = new Context(this, CONTEXT_ID, jsc_emit);
 	}
 };
 
