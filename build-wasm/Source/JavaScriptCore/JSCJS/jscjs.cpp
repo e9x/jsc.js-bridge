@@ -220,16 +220,22 @@ public:
 
 		return bytecodeToStr(bytecode);
 	}
+	bool destroy() {
+		// JSContextDestroy(ctx);
+
+		JSGlobalContextRelease(JSContextGetGlobalContext(ctx));
+
+		return true;
+	}
 };
 
-using namespace emscripten;
-
 EMSCRIPTEN_BINDINGS() {
-	class_<EMJSCJS>("JSCJS")
+	emscripten::class_<EMJSCJS>("JSCJS")
 		.constructor<>()
 		.function("eval", &EMJSCJS::eval)
 		.function("eval_bytecode", &EMJSCJS::eval_bytecode)
 		.function("compile_bytecode", &EMJSCJS::compile_bytecode)
+		.function("destroy", &EMJSCJS::destroy)
 		.property("id", &EMJSCJS::id)
 		;
 }

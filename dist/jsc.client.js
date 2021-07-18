@@ -64,30 +64,35 @@ var Host = __webpack_require__(/*! ./Host */ "./Host.js");
 class ClientContext extends Host {
 	constructor(server, id, jsc_emit){
 		super({
-			eval: () => {
-				
+			eval: x => {
+				this.bridge.eval(x);
 			},
 			id,
 			send(...data){
 				jsc_emit(JSON.stringify([ this.id, ...data ]));
 			},
+			destroy(){
+				throw new Error('Cannot destroy the server context.');
+			},
+			compile_bytecode(){
+				throw new Error('Cannot compile server bytecode.');
+			},
+			eval_bytecode(){
+				throw new Error('Cannot eval server bytecode.');
+			},
 		});
 		
-		/*
-		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
-		
-		// this.ready.then(() => {
-		var cons = this.context.console;
-		
-		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
-			try{
-				cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native.error(data)))
-			}catch(err){
-				console_log(err + '');
-			}
-		}) : cons[prop].bind(cons, '[SUB]');
-		// });
-		*/
+		this.ipc.on('ready', () => {
+			var cons = this.bridge.console;
+			
+			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
+				try{
+					cons[prop]('[SUB]', ...data.map(data => this.native.error(data)))
+				}catch(err){
+					console_log(err + '');
+				}
+			}) : cons[prop].bind(cons, '[SUB]');
+		});
 	}
 }
 
@@ -238,7 +243,7 @@ class Host extends Events {
 		
 		this.ipc = new IPC(this.$.send.bind(this.$));
 		
-		this.refs = new Refs(this.ipc);
+		this.refs = new Refs(this);
 		
 		this.refs.ref_create(globalThis);
 		this.refs.ref_create(this);
@@ -372,8 +377,9 @@ module.exports = IPC;
 var Handle = __webpack_require__(/*! ./Handle */ "./Handle.js");
 
 class Refs {
-	constructor(ipc){
-		this.ipc = ipc;
+	constructor(host){
+		this.host = host;
+		this.ipc = this.host.ipc;
 		
 		this.base_func = Object.setPrototypeOf(function(){}, null);
 		
@@ -633,7 +639,7 @@ class Refs {
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw data;// TODO: FIX this.host.native.error(data);
+		if(is_exception && can_throw)throw this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference

@@ -3,8 +3,9 @@
 var Handle = require('./Handle');
 
 class Refs {
-	constructor(ipc){
-		this.ipc = ipc;
+	constructor(host){
+		this.host = host;
+		this.ipc = this.host.ipc;
 		
 		this.base_func = Object.setPrototypeOf(function(){}, null);
 		
@@ -264,7 +265,7 @@ class Refs {
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw data;// TODO: FIX this.host.native.error(data);
+		if(is_exception && can_throw)throw this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference

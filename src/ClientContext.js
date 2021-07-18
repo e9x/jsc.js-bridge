@@ -5,30 +5,35 @@ var Host = require('./Host');
 class ClientContext extends Host {
 	constructor(server, id, jsc_emit){
 		super({
-			eval: () => {
-				
+			eval: x => {
+				this.bridge.eval(x);
 			},
 			id,
 			send(...data){
 				jsc_emit(JSON.stringify([ this.id, ...data ]));
 			},
+			destroy(){
+				throw new Error('Cannot destroy the server context.');
+			},
+			compile_bytecode(){
+				throw new Error('Cannot compile server bytecode.');
+			},
+			eval_bytecode(){
+				throw new Error('Cannot eval server bytecode.');
+			},
 		});
 		
-		/*
-		globalThis.console_log = console.log = (...data) => this.ipc.send('log', ...data);
-		
-		// this.ready.then(() => {
-		var cons = this.context.console;
-		
-		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
-			try{
-				cons[prop]('[SUB]', ...data.map(data => this.bridge.global.native.error(data)))
-			}catch(err){
-				console_log(err + '');
-			}
-		}) : cons[prop].bind(cons, '[SUB]');
-		// });
-		*/
+		this.ipc.on('ready', () => {
+			var cons = this.bridge.console;
+			
+			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
+				try{
+					cons[prop]('[SUB]', ...data.map(data => this.native.error(data)))
+				}catch(err){
+					console_log(err + '');
+				}
+			}) : cons[prop].bind(cons, '[SUB]');
+		});
 	}
 }
 

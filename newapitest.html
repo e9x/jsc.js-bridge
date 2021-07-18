@@ -13,7 +13,7 @@ JSC.ready.then(() => {
 
 	context.bridge.exposed = () => alert('Exposed function was called.');
 
-	context.execute('console.log("test"); exposed();');
+	context.execute('console.log("test"); exposed(); JSC.context.bridge.alert("Called from context.");');
 
 	context.destroy();
 });

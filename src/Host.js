@@ -12,7 +12,7 @@ class Host extends Events {
 		
 		this.ipc = new IPC(this.$.send.bind(this.$));
 		
-		this.refs = new Refs(this.ipc);
+		this.refs = new Refs(this);
 		
 		this.refs.ref_create(globalThis);
 		this.refs.ref_create(this);

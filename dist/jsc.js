@@ -7095,7 +7095,7 @@ class Host extends Events {
 		
 		this.ipc = new IPC(this.$.send.bind(this.$));
 		
-		this.refs = new Refs(this.ipc);
+		this.refs = new Refs(this);
 		
 		this.refs.ref_create(globalThis);
 		this.refs.ref_create(this);
@@ -7229,8 +7229,9 @@ module.exports = IPC;
 var Handle = __webpack_require__(/*! ./Handle */ "./Handle.js");
 
 class Refs {
-	constructor(ipc){
-		this.ipc = ipc;
+	constructor(host){
+		this.host = host;
+		this.ipc = this.host.ipc;
 		
 		this.base_func = Object.setPrototypeOf(function(){}, null);
 		
@@ -7490,7 +7491,7 @@ class Refs {
 		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
 		else data = id;
 		
-		if(is_exception && can_throw)throw data;// TODO: FIX this.host.native.error(data);
+		if(is_exception && can_throw)throw this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference
@@ -7598,17 +7599,22 @@ class ServerContext extends Host {
 		super(Object.assign(new server.Module.JSCJS(), {
 			send(...data){
 				this.eval(`JSC.context.ipc.emit(...${JSON.stringify(data)})`);
-			}
+			},
+
 		}));
 		
-		server.eventp.on(this.$.id, (...data) => {
-			console.log('INCOMING', data);
-			
-			this.ipc.emit(...data);
-		});
+		server.eventp.on(this.$.id, this.ipc.emit.bind(this.ipc));
 		
 		// Load the client script.
 		this.$.eval(server.client_js.replace('CONTEXT_ID', this.$.id));
+		
+		this.$.send('ready');
+	}
+	destroy(){
+		// Unallocate props etc in C++
+		this.$.destroy();
+		
+		this.$.delete();
 	}
 }
 
