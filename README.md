@@ -22,15 +22,15 @@ Inspired by [Electron's remote module](https://github.com/electron/remote) and [
 
 ℹ This project is in its early stages. If a feature is missing, open an issue or implement it yourself and create a pull request.
 
-Embed the demo code on your website or host it locally
+Embed the dist code on your website or host it locally
 
 ```html
-<script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js?6.27.2021'></script>
+<script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js'></script>
 ```
 
-### Demos
-
 [Compiler](./compiler)
+
+### Demos
 
 [Secure Input Element](./secure-input)
 
