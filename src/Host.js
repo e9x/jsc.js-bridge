@@ -38,6 +38,9 @@ class Host extends Events {
 		
 		this.bytecode = {
 			compile: src => {
+				if(typeof src == 'function')src = `(${src})()`;
+				else if(typeof src != 'string')throw new TypeError('Context.bytecode.compile only accepts: String, Function');
+				
 				var hex = this.$.compile_bytecode(src),
 					arr = new Uint8Array(hex.length / 2);
 				
@@ -47,10 +50,10 @@ class Host extends Events {
 					
 				return arr;
 			},
-			load: src => {
+			execute: src => {
 				if(Array.isArray(src))src = new Uint8Array(src);
 				else if(src instanceof ArrayBuffer)src = new Uint8Array(src);
-				else if(!(src instanceof Uint8Array))throw new TypeError('JSC.bytecode.load only accepts: ArrayBuffer, Uint8Array, Array');
+				else if(!(src instanceof Uint8Array))throw new TypeError('Context.bytecode.execute only accepts: ArrayBuffer, Uint8Array, Array');
 				
 				if(!src.byteLength)throw new Error('Invalid bytecode');
 				

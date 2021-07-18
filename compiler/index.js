@@ -35,6 +35,8 @@ var show_files = data => {
 	});
 };
 
+var context;
+
 var compile_code = () => show_files({
 	'load.html': `<!doctype html>
 <html>
@@ -42,14 +44,19 @@ var compile_code = () => show_files({
 		<meta charset='utf-8'>
 	</head>
 	<body>
-		<script src='./load.js'></src>
+		<script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js'></script>
+		<script src='./load.js'></script>
 	</body>
 </html>`,
 	'load.js': load_js.textContent,
-	'load.jsc': JSC.bytecode.compile(input.value),
+	'load.jsc': context.bytecode.compile(input.value),
 });
 
 JSC.ready.then(() => {
+	console.log('JSC loaded.');
+	
+	context = new JSC.Context();
+	
 	compile_code();
 	
 	document.querySelector('.compile').addEventListener('click', compile_code, { passive: true });
