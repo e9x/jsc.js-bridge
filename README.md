@@ -1,30 +1,24 @@
-## Explanation:
+## Explanation
+
+This project allows the browser and embedded contexts to communicate and share objects.
 
 [JSC.js](https://github.com/mbbill/JSC.js) provides a foundation for embedding JavaScriptCore in the browser using [Emscripten](https://emscripten.org/).
 
-This project aims to modify JavaScriptCore to allow for IPC communication between the main page and the new context and provide a context bridge.
-
 Inspired by [Electron's remote module](https://github.com/electron/remote) and [Embind](https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html).
 
-## Use cases:
+## Use cases
 
 - Securing code in webpages (custom elements, websocket protocols, HTML generation, network requests, etc..)
 - Skipping parse times for huge blocks of code via bytecode
-- Simulating enviorments such as NodeJS by having no `window` or `location` properties in the context
+- Simulating enviorments such as NodeJS with no fixed variables such as `window` and `location`
+- Re-creating NodeJS's [VM](https://nodejs.org/api/vm.html) module
 
-### Current progress:
+### Todo
 
-- Bridging ✅
+- Updating JavaScriptCore
+- Storing references as WeakRefs
 
-- Loading bytecode ✅
-
-- Upgrading JavaScriptCore to the latest (for WeakRefs) 🚫
-
-#### Garbage collection:
-
-- Storing references as WeakRefs 🚫
-
-## Usage:
+## Usage
 
 ℹ This project is in its early stages. If a feature is missing, open an issue or implement it yourself and create a pull request.
 
@@ -34,15 +28,13 @@ Embed the demo code on your website or host it locally
 <script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js?6.27.2021'></script>
 ```
 
-### Demos:
+### Demos
 
 [Compiler](./compiler)
 
 [Secure Input Element](./secure-input)
 
-
-
-### Calling native functions:
+### Calling native functions
 
 Native functions cannot accept handles. Create a native object and assign your data to it.
 
@@ -80,7 +72,7 @@ Returns a handle to the code executed in the parallel context as a handle or JSO
 | code | `String|Function` | A string or function containing code to be executed in the JSC context |
 | ...args | `Any` | Arguments to call `code` with, this will be ignored if `code` is a string |
 
-#### Example:
+#### Example
 
 ```js
 console.log(JSC.eval(`globalThis.toString()`)); // "[object GlobalObject]"
@@ -93,13 +85,13 @@ JSC.eval(function(exposed_arg){
 }, fetch);
 ```
 
-### JSC.bytecode.compile(code) ⇒ `String`
+### JSC.bytecode.compile(code) ⇒ `Uint8Array`
 
-Returns a hex encoded string containing the bytecode result.
+Returns a Uint8Array containing the bytecode.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| code | `String` | Input for generating bytecode |
+| code | `String` | Code to compile |
 
 ### JSC.bytecode.load(bytecode)
 
@@ -115,14 +107,14 @@ Things to note:
 
 | Param | Type | Description |
 | --- | --- | --- |
-| bytecode | `String` | Hex encoded bytecode |
+| bytecode | `Array|Uint8Array|ArrayBuffer` | Bytecode |
 
-#### Example:
+#### Example
 
 ```js
 // Do not include the compiled function outside of development.
 // If this weren't the documentation then it would look like:
-// var BYTECODE = "00000000FFFFFF7F38000000000000.....";
+// var BYTECODE = [0, 0, 0, 0, 255, 255, 255, 127, 56, 0, 0, 0, 0, 0, 0, ];
 
 var BYTECODE = JSC.bytecode.compile(() => {
 	// Taken from https://github.com/darkskyapp/string-hash/blob/master/index.js
@@ -149,7 +141,7 @@ console.log(JSC.global.private_function.toString()); // "function hash"
 
 Runs a debugger statement on the parallel context (preferrably main context, debugging JSC contexts will fail)
 
-#### Example:
+#### Example
 
 ```js
 // Enter the JSC context
@@ -176,11 +168,13 @@ JSC.eval(() => {
 });
 ```
 
-## Building:
+## Building
 
 Original build instructions found at https://github.com/mbbill/JSC.js/blob/master/README.md
 
-### Build the WASM:
+### Build the WASM
+
+#### Using CMD on Windows
 
 1. Install [Emscripten](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) and setup em++ enviorment variables
 
@@ -188,51 +182,51 @@ Original build instructions found at https://github.com/mbbill/JSC.js/blob/maste
 
 3. Open a terminal
 
-4. Clone the repo:
+4. Clone the repo
 ```sh
 git clone https://github.com/e9x/jsc.js-bridge.git
 ```
 
-5. Enter the wasm builder:
+5. Enter the wasm builder
 ```sh
 cd jsc.js-bridge/build-wasm
 ```
 
-6. Run `prep_env.bat`:
+6. Run `prep_env.bat`
 ```sh
 ./prep_env.bat
 ```
 
-7. Create the build target:
+7. Create the build target
 ```sh
 gn gen out --args="target_os=\"wasm\""
 ```
 
-8. Build with Ninja:
+8. Build with Ninja
 ```sh
 ninja -C out
 ```
 
-### Build the JS:
+### Build the JS
 
 1. Install [NodeJS 14<=](https://nodejs.org/en/)
 
-2. Clone the repo or enter pre-existing folder:
+2. Clone the repo or enter pre-existing folder
 ```
 git clone https://github.com/e9x/jsc.js-bridge.git
 ```
 
-3. Enter the JS builder directory:
+3. Enter the JS builder directory
 ```sh
 cd jsc.js-bridge/build-wasm
 ```
 
-4. Install NPM modules:
+4. Install NPM modules
 ```sh
 npm install
 ```
 
-5. Run the builder:
+5. Run the builder
 ```sh
 node ./index.js --once
 ```

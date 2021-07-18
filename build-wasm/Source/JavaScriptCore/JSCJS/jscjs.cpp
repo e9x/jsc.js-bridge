@@ -1,112 +1,14 @@
-// billming
-#include "config.h"
+#include "jscjs.h"
 
-#include <iostream>
-#include <vector>
-#include "ArrayBuffer.h"
-#include "ArrayPrototype.h"
-#include "BuiltinNames.h"
-#include "ButterflyInlines.h"
-#include "CatchScope.h"
-#include "CodeBlock.h"
-#include "CodeCache.h"
-#include "Completion.h"
-#include "ConfigFile.h"
-#include "Disassembler.h"
-#include "Exception.h"
-#include "ExceptionHelpers.h"
-#include "HeapProfiler.h"
-#include "HeapSnapshotBuilder.h"
-#include "InitializeThreading.h"
-#include "Interpreter.h"
-#include "JIT.h"
-#include "JSArray.h"
-#include "JSArrayBuffer.h"
-#include "JSBigInt.h"
-#include "JSCInlines.h"
-#include "JSFunction.h"
-#include "JSInternalPromise.h"
-#include "JSInternalPromiseDeferred.h"
-#include "JSLock.h"
-#include "JSModuleLoader.h"
-#include "JSNativeStdFunction.h"
-#include "JSONObject.h"
-#include "JSSourceCode.h"
-#include "JSString.h"
-#include "JSTypedArrays.h"
-#include "JSWebAssemblyInstance.h"
-#include "JSWebAssemblyMemory.h"
-#include "LLIntThunks.h"
-#include "ObjectConstructor.h"
-#include "ParserError.h"
-#include "ProfilerDatabase.h"
-#include "PromiseDeferredTimer.h"
-#include "ProtoCallFrame.h"
-#include "ReleaseHeapAccessScope.h"
-#include "SamplingProfiler.h"
-#include "SourceProvider.h"
-#include "StackVisitor.h"
-#include "StructureInlines.h"
-#include "StructureRareDataInlines.h"
-#include "SuperSampler.h"
-#include "TestRunnerUtils.h"
-#include "TypedArrayInlines.h"
-#include <locale.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <wtf/Box.h>
-#include <wtf/CommaPrinter.h>
-#include <wtf/MainThread.h>
-#include <wtf/MemoryPressureHandler.h>
-#include <wtf/MonotonicTime.h>
-#include <wtf/NeverDestroyed.h>
-#include <wtf/Scope.h>
-#include <wtf/StringPrintStream.h>
-#include <wtf/URL.h>
-#include <wtf/WallTime.h>
-#include <wtf/text/StringBuilder.h>
-#include <wtf/text/StringConcatenateNumbers.h>
-
-#include "APICast.h"
-#include "DateConstructor.h"
-#include "ErrorConstructor.h"
-#include "FunctionConstructor.h"
-#include "Identifier.h"
-#include "InitializeThreading.h"
-#include "JSArray.h"
-#include "JSCallbackConstructor.h"
-#include "JSCallbackFunction.h"
-#include "JSCallbackObject.h"
-#include "JSClassRef.h"
-#include "JSFunction.h"
-#include "JSGlobalObject.h"
-#include "JSObject.h"
-#include "JSRetainPtr.h"
-#include "JSString.h"
-#include "JSValueRef.h"
-#include "ObjectPrototype.h"
-#include "PropertyNameArray.h"
-#include "RegExpConstructor.h"
-
-#include "JSContext.h"
-#include "JSContextRef.h"
-#include "JSObjectRef.h"
-#include "JSObject.h"
-#include "JSValueRef.h"
-#include "JSValue.h"
-#include "JSStringRef.h"
-#include "JSString.h"
-
-#include "Error.h"
-
-#include <emscripten/emscripten.h>
+/* TODO:
+create embind `Context` class (with destroy, send, etc)
+send should accept inf args
+*/
 
 using namespace JSC;
 using namespace std;
 
-using BytecodeVector = vector<char>;
+typedef vector<char> BytecodeVector;
 
 class SourceProviderBytecode : public StringSourceProvider {
 public:
@@ -173,11 +75,11 @@ bool dumpBytecodeFromSource(VM& vm, String& source, const SourceOrigin& sourceOr
 }
 
 static const char s_hexTable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
-String bytecodeToStr(BytecodeVector& bytecode) {
-    String str;
+std::string bytecodeToStr(BytecodeVector& bytecode) {
+	std::string str;
     for (auto i : bytecode) {
-        str.append(s_hexTable[(i & 0xF0) >> 4]);
-        str.append(s_hexTable[(i & 0x0F)]);
+        str.push_back(s_hexTable[(i & 0xF0) >> 4]);
+        str.push_back(s_hexTable[(i & 0x0F)]);
     }
     return str;
 }
@@ -197,8 +99,7 @@ bool strToBytecode(const String& bytecodeStr, BytecodeVector& bytecode) {
 
 void jsc_init() {
     static bool initialized = false;
-    if (initialized)
-        return;
+    if (initialized)return;
     JSC::Options::enableRestrictedOptions(true);
     JSC::Options::initialize();
     JSC::Options::ensureOptionsAreCoherent();
@@ -257,85 +158,90 @@ bool checkSyntax(VM& vm, String& sourceStr, SourceOrigin& sourceOrigin, String& 
     return true;
 }
 
-extern "C" {
+struct buffer {
+	unsigned int pointer;
+	unsigned int size;
+};
 
-const char* jsc_eval(const char* src) {
-    static JSGlobalObject* globalObject = jsc_global();
+std::string compile_bytecode(std::string input) {
+	static JSGlobalObject* globalObject = jsc_global();
 
-    VM& vm = globalObject->vm();
-    JSLockHolder locker(vm);
-    auto scope = DECLARE_CATCH_SCOPE(vm);
-    SourceOrigin sourceOrigin("interpreter");
+	VM& vm = globalObject->vm();
+	JSLockHolder locker(vm);
+	SourceOrigin sourceOrigin("interpreter");
+	String errMsg;
 
-    // check syntax
-    String source = String::fromUTF8(src);
-    String errMsg;
-    if(!checkSyntax(vm, source, sourceOrigin, errMsg))return errMsg.utf8().data();
-	
-    // eval
+	// check syntax
+	String source = String::fromUTF8(input.c_str());
+	if (!checkSyntax(vm, source, sourceOrigin, errMsg))return errMsg.utf8().data();
+
+	// compile
+	BytecodeVector bytecode;
+	if (!dumpBytecodeFromSource(vm, source, sourceOrigin, bytecode, errMsg))return errMsg.utf8().data();
+
+	return bytecodeToStr(bytecode);
+}
+
+std::string jsc_eval(std::string src) {
+	static JSGlobalObject* globalObject = jsc_global();
+
+	VM& vm = globalObject->vm();
+	JSLockHolder locker(vm);
+	auto scope = DECLARE_CATCH_SCOPE(vm);
+	SourceOrigin sourceOrigin("interpreter");
+
+	// check syntax
+	String source = String::fromUTF8(src.c_str());
+	String errMsg;
+	if (!checkSyntax(vm, source, sourceOrigin, errMsg))return errMsg.utf8().data();
+
+	// eval
 	String ret_str;
-    NakedPtr<Exception> evaluationException;
-    JSValue returnValue = evaluate(globalObject->globalExec(), makeSource(source, sourceOrigin), JSValue(), evaluationException);
+	NakedPtr<Exception> evaluationException;
+	JSValue returnValue = evaluate(globalObject->globalExec(), makeSource(source, sourceOrigin), JSValue(), evaluationException);
+
+	if (evaluationException) {
+		printf("Module.eval exception:\n%s\n", evaluationException->value().toWTFString(globalObject->globalExec()).utf8().data());
+	}else ret_str = String(returnValue.toWTFString(globalObject->globalExec()));
+
+	scope.clearException();
+	static CString ret_utf8;
+	ret_utf8 = ret_str.utf8();
+	return ret_utf8.data();
+}
+
+std::string eval_bytecode(std::string src) {
+	static JSGlobalObject* globalObject = jsc_global();
+
+	VM& vm = globalObject->vm();
+	JSLockHolder locker(vm);
+	auto scope = DECLARE_CATCH_SCOPE(vm);
+	SourceOrigin sourceOrigin("interpreter");
+
+	// convert
+	BytecodeVector bytecode;
+	String source(src.c_str());
 	
-    if(evaluationException)ret_str = String("Exception: ") + evaluationException->value().toWTFString(globalObject->globalExec());
-    else ret_str = String(returnValue.toWTFString(globalObject->globalExec()));
+	if (!strToBytecode(source, bytecode)) {
+		return "error: Invalid bytecode.";
+	}
 
-    scope.clearException();
-    static CString ret_utf8;
-    ret_utf8 = ret_str.utf8();
-    return ret_utf8.data();
+	// eval
+	String ret_str;
+	NakedPtr<Exception> evaluationException;
+	// todo: call context's jsc brige's ipc handle create
+	JSValue returnValue = evaluate(globalObject->globalExec(), jscSourceFromBytecode(move(bytecode), sourceOrigin), JSValue(), evaluationException);
+	if (evaluationException)ret_str = String("Exception: ") + evaluationException->value().toWTFString(globalObject->globalExec());
+	else ret_str = String(returnValue.toWTFString(globalObject->globalExec()));
+
+	scope.clearException();
+	static CString ret;
+	ret = ret_str.utf8();
+	return ret.data();
 }
 
-const char* jsc_compile(const char* src) {
-    static JSGlobalObject* globalObject = jsc_global();
-
-    VM& vm = globalObject->vm();
-    JSLockHolder locker(vm);
-    SourceOrigin sourceOrigin("interpreter");
-    String errMsg;
-
-    // check syntax
-    String source = String::fromUTF8(src);
-    if (!checkSyntax(vm, source, sourceOrigin, errMsg))return errMsg.utf8().data();
-    
-    // compile
-    BytecodeVector bytecode;
-    if (!dumpBytecodeFromSource(vm, source, sourceOrigin, bytecode, errMsg))return errMsg.utf8().data();
-	
-    auto bytecodeStr = bytecodeToStr(bytecode);
-    static CString ret;
-    ret = bytecodeStr.utf8();
-    return ret.data();
+EMSCRIPTEN_BINDINGS(jscjs) {
+	emscripten::function("eval", &jsc_eval);
+	emscripten::function("eval_bytecode", &eval_bytecode);
+	emscripten::function("compile_bytecode", &compile_bytecode);
 }
-
-const char* jsc_eval_bytecode(const char* src) {
-    static JSGlobalObject* globalObject = jsc_global();
-
-    VM& vm = globalObject->vm();
-    JSLockHolder locker(vm);
-    auto scope = DECLARE_CATCH_SCOPE(vm);
-    SourceOrigin sourceOrigin("interpreter");
-
-    // convert
-    BytecodeVector bytecode;
-    String source(src);
-    if (!strToBytecode(source, bytecode)) {
-        return "error: Invalid bytecode.";
-    }
-
-    // eval
-    String ret_str;
-    NakedPtr<Exception> evaluationException;
-    JSValue returnValue = evaluate(globalObject->globalExec(), jscSourceFromBytecode(move(bytecode), sourceOrigin), JSValue(), evaluationException);
-    if (evaluationException)
-        ret_str = String("Exception: ") + evaluationException->value().toWTFString(globalObject->globalExec());
-    else
-        ret_str = String(returnValue.toWTFString(globalObject->globalExec()));
-
-    scope.clearException();
-    static CString ret;
-    ret = ret_str.utf8();
-    return ret.data();
-}
-
-} // extern "C"

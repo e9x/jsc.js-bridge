@@ -6,11 +6,15 @@
 	</head>
 	<body>
 		<h3>Compiler</h3>
-		<p>Input:</p>
 		<textarea spellcheck='false' class='input' placeholder='Your code here'></textarea>
-		<p>Output</p>
-		<textarea spellcheck='false' class='output' placeholder='Code will load shortly...'></textarea>
-		<a href='../demo/secure-input'><p>View the example result</p></a>
+		<button class='compile'>Compile</button>
+		<h3>Files</h3>
+		<div class='files'></div>
+		<script type='load.js'>(async () => {
+	var COMPILED = await(await fetch('./load.jsc')).arrayBuffer();
+	await JSC.ready;
+	JSC.bytecode.load(COMPILED);
+})();</script>
 		<script type='example'>JSC.global.secure_input = function(){
 	if(!(this instanceof JSC.context.HTMLElement))throw new TypeError('Must be called on HTMLElement');
 	
@@ -61,6 +65,7 @@
 	};
 };</script>
 		<script src='../dist/jsc.js'></script>
+		<script src='./utils.js'></script>
 		<script src='./index.js'></script>
 	</body>
 </html>

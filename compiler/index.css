@@ -30,3 +30,14 @@ a:hover {
 secure-input {
 	width: 500px;
 }
+
+.compile {
+	flex: none;
+	width: fit-content;
+}
+
+.files {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+}

@@ -5,7 +5,7 @@ var current = typeof document == 'object' && document.currentScript ? document.c
 
 class Server extends Host {
 	constructor(){
-		super((...data) => this.reval(`JSC.ipc.emit(...${JSON.stringify(data)})`));
+		super((...data) => this.Module.eval(`JSC.ipc.emit(...${JSON.stringify(data)})`));
 		
 		this.ipc.on('log', console.log.bind(console, '[WASM]'));
 		
@@ -15,48 +15,44 @@ class Server extends Host {
 		
 		this.bytecode = {
 			compile: src => {
-				if(typeof src == 'function')src = '(' + src + ')()';
+				var hex = this.Module.compile_bytecode(src),
+					arr = new Uint8Array(hex.length / 2);
 				
-				return this.bytecode_compile(src);
+				for(let index = 0; index < hex.length; index += 2){
+					arr[index / 2] = parseInt(hex.substr(index, 2), 16);
+				}
+					
+				return arr;
 			},
 			load: src => {
-				this.bytecode_eval(src);
+				if(Array.isArray(src))src = new Uint8Array(src);
+				else if(src instanceof ArrayBuffer)src = new Uint8Array(src);
+				else if(!(src instanceof Uint8Array))throw new TypeError('JSC.bytecode.load only accepts: ArrayBuffer, Uint8Array, Array');
+				
+				if(!src.byteLength)throw new Error('Invalid bytecode');
+				
+				var hex = '';
+				
+				for(let byte of src)hex += (byte & 0xff).toString(16).toUpperCase().padStart(2, 0);
+				
+				// TODO: return handle id
+				this.Module.eval_bytecode(hex);
 			},
 		};
 	}
 	create_module(){
-		var Module = {
-			preRun: [
-				async () => {
-					// this.reval = this.Module.cwrap('jsc_eval', 'string', ['string']);
-					
-					// Log uncaught exceptions.
-					var run = this.reval = Module.cwrap('jsc_eval', 'string', ['string']);
-					
-					this.reval = x => {
-						var ret = run(x);
-						
-						if(ret.startsWith('Exception'))console.log(ret);
-						
-						return ret;
-					};
-					
-					this.bytecode_compile = Module.cwrap('jsc_compile', 'string', ['string']);
-					
-					this.bytecode_eval = Module.cwrap('jsc_eval_bytecode', 'string', ['string']);
-					
-					// Load the client script.
-					this.reval(await(await fetch(new URL(client_file, current))).text());
-					
-					setTimeout(() => this.ready.resolve(), 10);
-				},
-			],
-			postRun: [],
+		this.Module = {
+			postRun: async () => {
+				// Load the client script.
+				this.Module.eval(await(await fetch(new URL(client_file, current))).text());
+				
+				this.ready.resolve();
+			},
 			print(text){
-				console.log('[JSC LOG]', text);
+				console.log(text);
 			},
 			printErr(...text){
-				console.error('[JSC ERROR]', ...text);
+				console.error(...text);
 			},
 			setStatus(text){
 				// Unnecessary.
@@ -67,7 +63,7 @@ class Server extends Host {
 			},
 		};
 		
-		require('../build-wasm/out/jsc.js?emcc')(Module);
+		require('../build-wasm/out/jsc.js?emcc')(this.Module);
 	}
 };
 
