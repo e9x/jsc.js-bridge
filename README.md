@@ -28,9 +28,9 @@ Embed the dist code on your website or host it locally
 <script src='https://e9x.github.io/jsc.js-bridge/dist/jsc.min.js'></script>
 ```
 
-[Compiler](./compiler)
-
 ### Demos
+
+[Compiler](./demos/compiler)
 
 [Secure Input Element](./demos/secure-input)
 
