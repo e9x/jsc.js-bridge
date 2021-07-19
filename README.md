@@ -39,7 +39,9 @@ Embed the dist code on your website or host it locally
 Native functions cannot accept handles. Create a native object and assign your data to it.
 
 ```js
-context.eval(() => {
+var Content = new JSC.Context();
+
+context.execute(() => {
 	var native_object = new JSC.context.bridge.Object();
 	var observer = new JSC.context.bridge.MutationObserver(mutations => {
 		console.log('MUTATIONS:', mutations);
@@ -54,6 +56,24 @@ context.eval(() => {
 	observer.observe(JSC.context.bridge.document, native_object);
 });
 ```
+
+### JSC.Context
+
+Creates a JSC context.
+
+#### Example
+
+```js
+var context = new JSC.Context();
+
+context.execute('console.log("test");');
+
+context.destroy();
+```
+
+### Context.destroy
+
+Destroys a JSC context, including references and handles.
 
 ### Context.bridge
 
@@ -139,15 +159,17 @@ console.log(context.private_function.toString()); // "function hash"
 // Calling toString on the function generated from bytecode no longer returns the source which means our hash function is secure.
 ```
 
-### JSC.debugger()
+### Context.debugger()
 
 Runs a debugger statement on the parallel context (preferrably main context, debugging JSC contexts will fail)
 
 #### Example
 
 ```js
+var context = new JSC.Context();
+
 // Enter the JSC context
-JSC.context.execute(() => {
+context.execute(() => {
 	// Create an instance of the parent context's headers because they are not present in this context.
 	var headers = new JSC.context.bridge.Headers();
 	
