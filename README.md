@@ -39,9 +39,9 @@ Embed the dist code on your website or host it locally
 Native functions cannot accept handles. Create a native object and assign your data to it.
 
 ```js
-JSC.eval(() => {
-	var native_object = new JSC.context.Object();
-	var observer = new JSC.context.MutationObserver(mutations => {
+context.eval(() => {
+	var native_object = new JSC.context.bridge.Object();
+	var observer = new JSC.context.bridge.MutationObserver(mutations => {
 		console.log('MUTATIONS:', mutations);
 	});
 	
@@ -51,19 +51,19 @@ JSC.eval(() => {
 	// If we used a object created in this context, we will get:
 	// Failed to execute 'observe' on 'MutationObserver': The provided value cannot be converted to a sequence.
 	
-	observer.observe(JSC.context.document, native_object);
+	observer.observe(JSC.context.bridge.document, native_object);
 });
 ```
 
-### JSC.context
+### Context.bridge
 
 A handle referencing the context's `globalThis`.
 
-### JSC.global
+### Context.global
 
 A handle referencing the context's `JSC` object.
 
-### JSC.eval(code, [...args]) ⇒ `Handle`
+### Context.execute(code, [...args]) ⇒ `Handle`
 
 Returns a handle to the code executed in the parallel context as a handle or JSON.
 
@@ -75,9 +75,9 @@ Returns a handle to the code executed in the parallel context as a handle or JSO
 #### Example
 
 ```js
-console.log(JSC.eval(`globalThis.toString()`)); // "[object GlobalObject]"
+console.log(context.execute(`globalThis.toString()`)); // "[object GlobalObject]"
 
-JSC.eval(function(exposed_arg){
+context.execute(function(exposed_arg){
   console.log(typeof fetch); // undefined
   console.log(typeof exposed_arg); // function
   
@@ -85,7 +85,7 @@ JSC.eval(function(exposed_arg){
 }, fetch);
 ```
 
-### JSC.bytecode.compile(code) ⇒ `Uint8Array`
+### Context.bytecode.compile(code) ⇒ `Uint8Array`
 
 Returns a Uint8Array containing the bytecode.
 
