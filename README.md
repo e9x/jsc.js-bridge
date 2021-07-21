@@ -86,7 +86,7 @@ git clone https://github.com/e9x/jsc.js-bridge.git
 
 3. Enter the JS builder directory
 ```sh
-cd jsc.js-bridge/build-wasm
+cd jsc.js-bridge/build-js
 ```
 
 4. Install NPM modules

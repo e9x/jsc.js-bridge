@@ -2,12 +2,10 @@
 
 var current = typeof document == 'object' && document.currentScript ? document.currentScript.src : 'https://e9x.github.io/jsc.js-bridge/dist/',
 	Context = require('./ServerContext'),
-	Base = require('./Base');
+	Events = require('./Events');
 
-class Server extends Base {
+class Server {
 	constructor(){
-		super();
-		
 		this.create_module();
 		
 		var self = this;
@@ -32,7 +30,7 @@ class Server extends Base {
 		
 		this.ready.resolve = res;
 		
-		// this.ready.then(() => this.ipc.send('ready'));
+		// this.ready.then(() => this.ipc.send(READY));
 	}
 	create_module(){
 		this.Module = {
@@ -54,6 +52,8 @@ class Server extends Base {
 				return new URL(file, current).href;
 			},
 		};
+		
+		this.Module.eventp = new Events();
 		
 		require('../build-wasm/out/jsc.js?emcc')(this.Module);
 	}

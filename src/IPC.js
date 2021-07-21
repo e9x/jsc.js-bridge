@@ -1,24 +1,27 @@
 'use strict';
 
-var Events = require('./Events');
+var Events = require('./Events'),
+	{ POST } = require('./EventTypes');
 
 class IPC extends Events {
 	constructor(send){
 		super();
 		
+		this.pid = 100;
+		
 		this.send = send;
 		
-		this.on('post', (id, event, ...data) => {
-			this.emit(event, data => this.send(id, data), ...data);
+		this.on(POST, (id, event, ...data) => {
+			this.emit(event, data => this.send(id--, data), ...data);
 		});
 	}
 	post(...data){
-		var id = Math.random(),
+		var id = this.pid++,
 			ret;
 		
 		this.once(id, data => ret = data);
 		
-		this.send('post', id, ...data);
+		this.send(POST, id, ...data);
 		
 		return ret;
 	}

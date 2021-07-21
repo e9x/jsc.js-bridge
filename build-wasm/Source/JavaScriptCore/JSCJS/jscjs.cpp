@@ -1,8 +1,7 @@
 #include "jscjs.h"
 
 /* TODO:
-create embind `Context` class (with destroy, send, etc)
-send should accept inf args
+Remove ref usage
 */
 
 using namespace JSC;
@@ -60,10 +59,6 @@ bool dumpBytecodeFromSource(VM& vm, String& source, const SourceOrigin& sourceOr
 	return true;
 }
 
-EM_JS(void, emit_event, (const char* string), {
-	JSC.eventp.emit(...JSON.parse(UTF8ToString(string)));
-});
-
 static const char s_hexTable[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
 std::string bytecodeToStr(BytecodeVector& bytecode) {
@@ -89,24 +84,6 @@ bool strToBytecode(const String& bytecodeStr, BytecodeVector& bytecode) {
     return true;
 }
 
-JSValueRef emit_func(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception){
-	JSValueRef first_arg = arguments[0];
-	
-	JSStringRef js_string = JSValueToStringCopy(ctx, first_arg, exception);
-	
-	size_t length = JSStringGetMaximumUTF8CStringSize(js_string);
-	
-	char string[length];
-	
-	JSStringGetUTF8CString(js_string, string, length);
-	
-	emit_event(string);
-	
-	JSStringRelease(js_string);
-	
-	return JSValueMakeUndefined(ctx);
-}
-
 bool checkSyntax(VM& vm, String& sourceStr, SourceOrigin& sourceOrigin, String& errMsg) {
 	ParserError error;
 	checkSyntax(vm, makeSource(sourceStr, sourceOrigin), error);
@@ -117,6 +94,23 @@ bool checkSyntax(VM& vm, String& sourceStr, SourceOrigin& sourceOrigin, String& 
 	return true;
 };
 
+JSValueRef jsc_send(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception);
+
+JSValueRef jsc_log(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) {
+	JSStringRef jsons = JSValueCreateJSONString(ctx, JSObjectMakeArray(ctx, argumentCount, arguments, NULL), 0, NULL);
+
+	size_t length = JSStringGetMaximumUTF8CStringSize(jsons);
+
+	char string[length];
+
+	JSStringGetUTF8CString(jsons, string, length);
+
+	JSStringRelease(jsons);
+
+	printf("%s\n", string);
+
+	return JSValueMakeUndefined(ctx);
+}
 
 int cids = 0;
 
@@ -125,8 +119,13 @@ public:
 	int id;
 	JSGlobalObject* global;
 	JSContextRef ctx;
+	JSObjectRef JSC;
+	JSObjectRef on_event;
+	bool is_ctx = false;
 	EMJSCJS() {
 		init();
+
+		is_ctx = true;
 
 		id = cids++;
 
@@ -136,13 +135,48 @@ public:
 
 		ctx = toRef(global->globalExec());
 
-		expose_emit();
+		JSC = JSObjectMake(ctx, NULL, NULL);
+		
+		JSObjectSetPrivate(JSC, (void*)id);
+
+		expose_jsc();
+		expose_send();
 	}
-	void expose_emit() {
-		JSStringRef name = JSStringCreateWithUTF8CString("jsc_emit");
-		JSObjectRef func = JSObjectMakeFunctionWithCallback(ctx, name, emit_func);
-		JSObjectSetProperty(ctx, toRef(global), name, func, kJSPropertyAttributeNone, nullptr);
+	bool is_context() {
+		return is_ctx == true;
+	}
+	void expose_jsc() {
+		JSStringRef name = JSStringCreateWithUTF8CString("jscLINK");
+		JSObjectSetProperty(ctx, toRef(global), name, JSC, kJSPropertyAttributeNone, nullptr);
 		JSStringRelease(name);
+		expose_id();
+		expose_log();
+	}
+	void expose_id() {
+		JSStringRef name = JSStringCreateWithUTF8CString("id");
+		JSObjectSetProperty(ctx, JSC, name, JSValueMakeNumber(ctx, id), kJSPropertyAttributeNone, nullptr);
+		JSStringRelease(name);
+	}
+	void expose_log() {
+		JSStringRef name = JSStringCreateWithUTF8CString("log");
+		JSObjectRef func = JSObjectMakeFunctionWithCallback(ctx, name, jsc_log);
+		JSObjectSetProperty(ctx, JSC, name, func, kJSPropertyAttributeNone, nullptr);
+		JSStringRelease(name);
+	}
+	void expose_send() {
+		JSStringRef name = JSStringCreateWithUTF8CString("send");
+		JSObjectRef func = JSObjectMakeFunctionWithCallback(ctx, name, jsc_send);
+		JSObjectSetProperty(ctx, JSC, name, func, kJSPropertyAttributeNone, nullptr);
+		JSStringRelease(name);
+	}
+	JSObjectRef jsc_func(const char* property) {
+		JSStringRef prop = JSStringCreateWithUTF8CString(property);
+		JSValueRef func = JSObjectGetProperty(ctx, JSC, prop, NULL);
+		JSStringRelease(prop);
+
+		if (!JSValueIsObject(ctx, func))throw printf("jscLINK.%s is not a property.\n", property);
+
+		return JSValueToObject(ctx, func, NULL);
 	}
 	void init() {
 		JSC::Options::enableRestrictedOptions(true);
@@ -150,6 +184,43 @@ public:
 		JSC::Options::ensureOptionsAreCoherent();
 		WTF::initializeMainThread();
 		JSC::initializeThreading();
+	}
+	std::string send_json(int event, std::string data) {
+		JSObjectRef json = JSValueToObject(ctx, JSValueToObject(ctx, JSValueMakeFromJSONString(ctx, JSStringCreateWithUTF8CString(data.c_str())), NULL), NULL);
+
+		/*
+		json is a js object array, not an array of jsvalues
+		which is why it cant be used directly as an argument
+		*/
+
+		JSStringRef length_str = JSStringCreateWithUTF8CString("length");
+		size_t json_len = JSValueToNumber(ctx, JSObjectGetProperty(ctx, json, length_str, NULL), NULL);
+		JSStringRelease(length_str);
+
+		JSValueRef args[1 + json_len];
+		args[0] = JSValueMakeNumber(ctx, event);
+		
+		for (int index = 0; index < json_len; index++)args[index + 1] = JSObjectGetPropertyAtIndex(ctx, json, index, NULL);
+
+		size_t args_len = sizeof(args) / sizeof(JSValueRef*);
+
+		// printf("sending event %d to context and json %s\n", event, data.c_str());
+
+		JSValueRef result = JSObjectCallAsFunction(ctx, jsc_func("event"), JSC, args_len, args, NULL);
+
+		if (JSValueIsNull(ctx, result))return "";
+
+		JSStringRef jsons = JSValueCreateJSONString(ctx, result, 0, NULL);
+		
+		size_t length = JSStringGetMaximumUTF8CStringSize(jsons);
+
+		char string[length];
+
+		JSStringGetUTF8CString(jsons, string, length);
+
+		JSStringRelease(jsons);
+		
+		return string;
 	}
 	std::string eval(std::string src) {
 		VM& vm = global->vm();
@@ -163,19 +234,31 @@ public:
 		if (!checkSyntax(vm, source, sourceOrigin, errMsg))return errMsg.utf8().data();
 
 		// eval
-		String ret_str;
+		// String ret_str;
 		NakedPtr<Exception> evaluationException;
-		JSValue returnValue = evaluate(global->globalExec(), makeSource(source, sourceOrigin), JSValue(), evaluationException);
+		JSValue result = evaluate(global->globalExec(), makeSource(source, sourceOrigin), JSValue(), evaluationException);
 
 		if (evaluationException) {
 			printf("Module.eval exception:\n%s\n", evaluationException->value().toWTFString(global->globalExec()).utf8().data());
-		}
-		else ret_str = String(returnValue.toWTFString(global->globalExec()));
 
-		scope.clearException();
-		static CString ret_utf8;
-		ret_utf8 = ret_str.utf8();
-		return ret_utf8.data();
+			scope.clearException();
+
+			return "";
+		}
+		
+		JSValueRef result_ref = toRef(global->globalExec(), result);
+
+		if (JSValueIsNull(ctx, result_ref))return "";
+			
+		JSStringRef jsons = JSValueCreateJSONString(ctx, result_ref, 0, NULL);
+
+		char string[JSStringGetMaximumUTF8CStringSize(jsons)];
+
+		JSStringGetUTF8CString(jsons, string, sizeof(string));
+
+		JSStringRelease(jsons);
+			
+		return string;
 	}
 	std::string eval_bytecode(std::string src) {
 		VM& vm = global->vm();
@@ -227,13 +310,52 @@ public:
 	}
 };
 
+EM_JS(void, emit_event, (int ctx, int event, const char* string), {
+	Module.eventp.emit(ctx, event, ...JSON.parse(UTF8ToString(string)));
+});
+
+JSValueRef jsc_send(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception) {
+	int event = JSValueToNumber(ctx, arguments[0], exception);
+	const char* data;
+
+	if(argumentCount == 1) {
+		data = "[]";
+	}else{
+		size_t jsize = argumentCount - 1;
+		JSValueRef jdata[jsize];
+		for (int index = 0; index < jsize; index++) {
+			jdata[index] = arguments[index + 1];
+		}
+
+		JSStringRef jsons = JSValueCreateJSONString(ctx, JSObjectMakeArray(ctx, jsize, jdata, exception), 0, exception);
+
+		char string[JSStringGetMaximumUTF8CStringSize(jsons)];
+
+		JSStringGetUTF8CString(jsons, string, sizeof(string));
+
+		JSStringRelease(jsons);
+
+		data = string;
+	}
+
+	JSStringRef prop = JSStringCreateWithUTF8CString("id");
+	int ctx_id = JSValueToNumber(ctx, JSObjectGetProperty(ctx, thisObject, prop, exception), exception);
+	JSStringRelease(prop);
+
+	// printf("EVENT: %d\nSTRING: %s\nCTX: %d\nARGUMENT COUNT: %zu\n", event, data, ctx_id, argumentCount);
+
+	emit_event(ctx_id, event, data);
+
+	return JSValueMakeUndefined(ctx);
+}
+
 EMSCRIPTEN_BINDINGS() {
 	emscripten::class_<EMJSCJS>("JSCJS")
 		.constructor<>()
+		.function("send_json", &EMJSCJS::send_json)
 		.function("eval", &EMJSCJS::eval)
 		.function("eval_bytecode", &EMJSCJS::eval_bytecode)
 		.function("compile_bytecode", &EMJSCJS::compile_bytecode)
-		.function("destroy", &EMJSCJS::destroy)
 		.property("id", &EMJSCJS::id)
 		;
 }

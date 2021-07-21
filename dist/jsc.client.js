@@ -1,25 +1,7 @@
 var JSC;
 /******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
-
-/***/ "./Base.js":
-/*!*****************!*\
-  !*** ./Base.js ***!
-  \*****************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-var Events = __webpack_require__(/*! ./Events */ "./Events.js");
-
-class Base {
-	constructor(){
-		// event pool, across multiple contexts
-		this.eventp = new Events();
-	}
-};
-
-module.exports = Base;
-
-/***/ }),
 
 /***/ "./Client.js":
 /*!*******************!*\
@@ -27,22 +9,13 @@ module.exports = Base;
   \*******************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-"use strict";
 
 
-var Base = __webpack_require__(/*! ./Base */ "./Base.js"),
-	IPC = __webpack_require__(/*! ./IPC */ "./IPC.js"),
-	Context = __webpack_require__(/*! ./ClientContext */ "./ClientContext.js");
+var Context = __webpack_require__(/*! ./ClientContext */ "./ClientContext.js");
 
-class Client extends Base {
+class Client {
 	constructor(){
-		super();
-		
-		var jsc_emit = globalThis.jsc_emit;
-		
-		delete globalThis.jsc_emit;
-		
-		this.context = new Context(this, CONTEXT_ID, jsc_emit);
+		this.context = new Context(this);
 	}
 };
 
@@ -56,23 +29,25 @@ module.exports = new Client();
   \**************************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-"use strict";
 
 
-var Host = __webpack_require__(/*! ./Host */ "./Host.js");
+var Host = __webpack_require__(/*! ./Host */ "./Host.js"),
+	{ READY } = __webpack_require__(/*! ./EventTypes */ "./EventTypes.js");
 
 class ClientContext extends Host {
-	constructor(server, id, jsc_emit){
+	constructor(server){
 		super({
 			eval: x => {
+				jscLINK.log(x);
 				this.bridge.eval(x);
 			},
-			id,
-			send(...data){
-				jsc_emit(JSON.stringify([ this.id, ...data ]));
+			id: jscLINK.id,
+			send: (event, ...data) => {
+				// this.link.log('SEND TO SERVER', event, data);
+				this.link.send(event, ...data);
 			},
-			destroy(){
-				throw new Error('Cannot destroy the server context.');
+			delete(){
+				throw new Error('Cannot delete the server context.');
 			},
 			compile_bytecode(){
 				throw new Error('Cannot compile server bytecode.');
@@ -82,7 +57,17 @@ class ClientContext extends Host {
 			},
 		});
 		
-		this.ipc.on('ready', () => {
+		this.link = jscLINK;
+		
+		jscLINK.event  = (event, ...data) => {
+			// jscLINK.log('got event', event, data);
+			
+			if(!this.ipc.emit(event, ...data))this.link.log('Unregistered event:', event);
+		};
+		
+		this.link.send(69);
+		
+		this.ipc.on(READY, () => {
 			var cons = this.bridge.console;
 			
 			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
@@ -100,31 +85,64 @@ module.exports = ClientContext;
 
 /***/ }),
 
+/***/ "./EventTypes.js":
+/*!***********************!*\
+  !*** ./EventTypes.js ***!
+  \***********************/
+/***/ ((__unused_webpack_module, exports) => {
+
+
+
+exports.REF = {
+	APPLY: 0,
+	CONSTRUCT: 1,
+	GET: 2,
+	SET: 3,
+	GET_DESC: 4,
+	SET_DESC: 5,
+	GET_PROTO: 6,
+	SET_PROTO: 7,
+	DELETE_PROP: 8,
+	HAS: 9,
+	OWNKEYS: 10,
+};
+
+exports.EVAL = 11;
+exports.POST = 12;
+exports.READY = 13;
+
+/***/ }),
+
 /***/ "./Events.js":
 /*!*******************!*\
   !*** ./Events.js ***!
   \*******************/
 /***/ ((module) => {
 
-"use strict";
 
 
 class Events {
-	static resolve_list(target, event){
-		if(!this.listeners)this.listeners = Symbol();
+	static resolve(target, event){
+		var events = this.map.get(target);
 		
-		var events = (target[Events.listeners] || (target[Events.listeners] = {}))[event] || (target[Events.listeners][event] = []);
-		
-		if(!events.merged){
-			events.merged = true;
-			
-			if(target.constructor.hasOwnProperty(Events.listeners))events.push(...Events.resolve_list(target.constructor, event));
+		if(!events){
+			events = new Map();
+			this.map.set(target, events);
 		}
 		
-		return events;
+		var callbacks = events.get(event);
+		
+		if(!callbacks){
+			callbacks = new Set();
+			events.set(event, callbacks);
+		}
+		
+		return callbacks;
 	};
 	on(event, callback){
-		Events.resolve_list(this, event).push(callback);
+		if(typeof callback != 'function')throw new TypeError('callback is not a function');
+		
+		Events.resolve(this, event).add(callback);
 	}
 	once(event, callback){
 		var cb = (...data) => {
@@ -137,88 +155,33 @@ class Events {
 		this.on(event, callback);
 	}
 	off(event, callback){
-		if(typeof callback != 'function')throw new Error('callback is not a function');
+		if(typeof callback != 'function')throw new TypeError('callback is not a function');
 		
 		if(callback[Events.original_func])callback = callback[Events.original_func];
 		
-		var list = Events.resolve_list(this, event), ind = list.indexOf(callback);
+		var list = Events.resolve(this, event);
 		
-		if(ind != -1)list.splice(ind, 1);
-		
-		if(!list.length)delete this[Events.listeners][event];
+		list.delete(callback);
 	}
 	emit(event, ...data){
-		var list = Events.resolve_list(this, event);
+		var set = Events.resolve(this, event);
 		
-		if(!list.length){
-			delete this[Events.listeners][event];
+		if(!set.size){
 			if(event == 'error')throw data[0];
-		}else for(var item of list)try{
+			return false;
+		}else for(let item of set)try{
 			item.call(this, ...data);
 		}catch(err){
 			this.emit('error', err);
 		}
+		
+		return true;
 	}
 };
+
+Events.map = new WeakMap();
 
 module.exports = Events;
-
-/***/ }),
-
-/***/ "./Handle.js":
-/*!*******************!*\
-  !*** ./Handle.js ***!
-  \*******************/
-/***/ ((module) => {
-
-"use strict";
-
-
-class Handle {
-	constructor(host, id, base){
-		this.host = host;
-		this.id = id;
-		this.base = base;
-	}
-	apply(target, that, args){
-		return this.host.ref_read(this.host.ipc.post('ref_apply', this.id, this.host.ref_create(that), args.length ? this.host.ref_create(args) : [ 'json', [] ]), true);
-	}
-	construct(target, args, new_target){
-		return this.host.ref_read(this.host.ipc.post('ref_construct', this.id, this.host.ref_create(args), this.host.ref_create(new_target)), true);
-	}
-	get(target, prop, reciever){
-		return this.host.ref_read(this.host.ipc.post('ref_get', this.id, this.host.ref_create(prop), this.host.ref_create(reciever)), true);
-	}
-	set(target, prop, value){
-		return this.host.ref_read(this.host.ipc.post('ref_set', this.id, this.host.ref_create(prop), this.host.ref_create(value)), true);
-	}
-	getOwnPropertyDescriptor(target, prop){
-		var desc = this.host.ref_read(this.host.ipc.post('ref_get_desc', this.id, this.host.ref_create(prop)));
-		
-		// use Object.entries and Object.fromEntries to have the object as is, not a proxy or stuffed with getters
-		return typeof desc == 'object' ? Object.fromEntries(desc) : desc;
-	}
-	defineProperty(target, prop, value){
-		return this.host.ref_read(this.host.ipc.post('ref_set_desc', this.id, this.host.ref_create(prop), this.host.ref_create(Object.entries(value))));
-	}
-	deleteProperty(target, prop){
-		return this.host.ref_read(this.host.ipc.post('ref_delete_prop', this.id, this.host.create_ref(), true));
-	}
-	getPrototypeOf(target){
-		return this.host.ref_read(this.host.ipc.post('ref_get_proto', this.id), true);
-	}
-	setPrototypeOf(target, value){
-		return this.host.ref_read(this.host.ipc.post('ref_set_proto', this.id, this.host.ref_create(value)), true);
-	}
-	has(target, prop){
-		return this.host.ipc.post('ref_has', this.id, this.host.ref_create(prop));
-	}
-	ownKeys(target){
-		return [...new Set([...this.host.ref_read(this.host.ipc.post('ref_ownkeys', this.id), true)].concat(Reflect.ownKeys(this.base)))];
-	}
-};
-
-module.exports = Handle;
 
 /***/ }),
 
@@ -228,12 +191,12 @@ module.exports = Handle;
   \*****************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-"use strict";
 
 
 var Refs = __webpack_require__(/*! ./Refs */ "./Refs.js"),
 	Events = __webpack_require__(/*! ./Events */ "./Events.js"),
-	IPC = __webpack_require__(/*! ./IPC */ "./IPC.js");
+	IPC = __webpack_require__(/*! ./IPC */ "./IPC.js"),
+	{ EVAL } = __webpack_require__(/*! ./EventTypes */ "./EventTypes.js");
 
 class Host extends Events {
 	constructor($){
@@ -241,15 +204,17 @@ class Host extends Events {
 		
 		this.$ = $;
 		
-		this.ipc = new IPC(this.$.send.bind(this.$));
+		this.ipc = new IPC((event, ...data) => {
+			this.$.send(event, ...data);
+		});
 		
 		this.refs = new Refs(this);
 		
-		this.refs.ref_create(globalThis);
-		this.refs.ref_create(this);
+		this.refs.create(globalThis);
+		this.refs.create(this);
 		
-		this.bridge = this.refs.ref_handle(1);
-		this.global = this.refs.ref_handle(2);
+		this.bridge = this.refs.handle(1);
+		this.global = this.refs.handle(2);
 		
 		/*this.ipc.on('ready', () => {
 			this.ready.resolve();
@@ -302,7 +267,7 @@ class Host extends Events {
 	}
 	execute(x, ...args){
 		if(typeof x == 'function'){
-			let ret = this.refs.ref_read(this.ipc.post('eval', '(' + x + ')'));
+			let ret = this.refs.read(this.ipc.post(EVAL, '(' + x + ')'));
 			
 			// SyntaxError
 			if(ret.thrown)throw this.refs.native.error(ret.data);
@@ -314,7 +279,7 @@ class Host extends Events {
 				throw this.refs.native.error(err);
 			}
 		}else{
-			let ret = this.refs.ref_read(this.ipc.post('eval', x));
+			let ret = this.refs.read(this.ipc.post(EVAL, x));
 			
 			if(ret.thrown)throw this.native.error(ret.data);
 			
@@ -324,6 +289,16 @@ class Host extends Events {
 	// create a parallel json object for sending to native functions such as MutationObserver.observe.
 	json(data){
 		return this.bridge.JSON.parse(JSON.stringify(data));
+	}
+	destroy(){
+		this.$.delete();
+		delete this.refs;
+		delete this.ipc;
+		delete this.global;
+		delete this.bridge;
+		delete this.native;
+		delete this.bytecode;
+		delete this.$;
 	}
 };
 
@@ -337,28 +312,30 @@ module.exports = Host;
   \****************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-"use strict";
 
 
-var Events = __webpack_require__(/*! ./Events */ "./Events.js");
+var Events = __webpack_require__(/*! ./Events */ "./Events.js"),
+	{ POST } = __webpack_require__(/*! ./EventTypes */ "./EventTypes.js");
 
 class IPC extends Events {
 	constructor(send){
 		super();
 		
+		this.pid = 100;
+		
 		this.send = send;
 		
-		this.on('post', (id, event, ...data) => {
-			this.emit(event, data => this.send(id, data), ...data);
+		this.on(POST, (id, event, ...data) => {
+			this.emit(event, data => this.send(id--, data), ...data);
 		});
 	}
 	post(...data){
-		var id = Math.random(),
+		var id = this.pid++,
 			ret;
 		
 		this.once(id, data => ret = data);
 		
-		this.send('post', id, ...data);
+		this.send(POST, id, ...data);
 		
 		return ret;
 	}
@@ -374,40 +351,85 @@ module.exports = IPC;
   \*****************/
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-"use strict";
 
 
-var Handle = __webpack_require__(/*! ./Handle */ "./Handle.js");
+var { REF, EVAL } = __webpack_require__(/*! ./EventTypes */ "./EventTypes.js");
+
+class Handle {
+	constructor(host, id, base){
+		this.host = host;
+		this.id = id;
+		this.base = base;
+	}
+	apply(target, that, args){
+		return this.host.read(this.host.ipc.post(REF.APPLY, this.id, this.host.create(that), args.length ? this.host.create(args) : [ 'json', [] ]), true);
+	}
+	construct(target, args, new_target){
+		return this.host.read(this.host.ipc.post(REF.CONSTRUCT, this.id, this.host.create(args), this.host.create(new_target)), true);
+	}
+	get(target, prop, reciever){
+		return this.host.read(this.host.ipc.post(REF.GET, this.id, this.host.create(prop), this.host.create(reciever)), true);
+	}
+	set(target, prop, value){
+		return this.host.read(this.host.ipc.post(REF.SET, this.id, this.host.create(prop), this.host.create(value)), true);
+	}
+	getOwnPropertyDescriptor(target, prop){
+		var desc = this.host.read(this.host.ipc.post(REF.GET_DESC, this.id, this.host.create(prop)));
+		
+		// use Object.entries and Object.fromEntries to have the object as is, not a proxy or stuffed with getters
+		return typeof desc == 'object' ? Object.fromEntries(desc) : desc;
+	}
+	defineProperty(target, prop, value){
+		return this.host.read(this.host.ipc.post(REF.SET_DESC, this.id, this.host.create(prop), this.host.create(Object.entries(value))));
+	}
+	deleteProperty(target, prop){
+		return this.host.read(this.host.ipc.post(REF.DELETE_PROP, this.id, this.host.create_ref(), true));
+	}
+	getPrototypeOf(target){
+		return this.host.read(this.host.ipc.post(REF.GET_PROTO, this.id), true);
+	}
+	setPrototypeOf(target, value){
+		return this.host.read(this.host.ipc.post(REF.SET_PROTO, this.id, this.host.create(value)), true);
+	}
+	has(target, prop){
+		return this.host.ipc.post(REF.HAS, this.id, this.host.create(prop));
+	}
+	ownKeys(target){
+		return [...new Set([...this.host.read(this.host.ipc.post(REF.OWNKEYS, this.id), true)].concat(Reflect.ownKeys(this.base)))];
+	}
+};
 
 class Refs {
-	constructor(host){
-		this.host = host;
-		this.ipc = this.host.ipc;
-		
-		this.base_func = Object.setPrototypeOf(function(){}, null);
-		
-		this.base_obj = Object.setPrototypeOf({}, null);
-		
-		var descs = Object.getOwnPropertyDescriptors(this.base_func);
+	name_func(func){
+		var descs = Object.getOwnPropertyDescriptors(func);
 		
 		for(let prop in descs){
 			let desc = descs[prop];
 			
 			if(desc.configurable){
-				Object.defineProperty(this.base_func, prop, {
-					writable: true,
-				});
+				Object.defineProperty(func, prop, { writable: true });
 				
-				delete this.base_func[prop];
+				delete func[prop];
 			}
 		}
 		
-		Object.defineProperty(this.base_func, 'toString', {
-			value(){
-				return '[JSC Function]';
-			},
-			writable: true,
-		});
+		return func;
+	}
+	scope(callback){
+		// automatically create var data, threw; and create ref with return value
+		return (resolve, ...handles) => {
+			
+		};
+	}
+	constructor(host){
+		this.host = host;
+		this.ipc = this.host.ipc;
+		
+		this.base = {
+			// function: this.name_func(Object.setPrototypeOf({main(){}}['main'], null)),
+			function: this.name_func(Object.setPrototypeOf(function(){}, null)),
+			object: Object.setPrototypeOf({}, null),
+		};
 		
 		/*
 		proxy => handle id
@@ -415,8 +437,6 @@ class Refs {
 		*/
 		
 		this.proxies = new WeakMap();
-		
-		this.needs_handle = ['function', 'object'];
 		
 		this.symbols = [
 			'search',
@@ -434,7 +454,7 @@ class Refs {
 			'iterator',
 		];
 		
-		this.ipc.on('eval', (resolve, code) => {
+		this.ipc.on(EVAL, (resolve, code) => {
 			var ret = {
 				thrown: false,
 				data: undefined,
@@ -447,39 +467,39 @@ class Refs {
 				ret.data = err;
 			}
 			
-			resolve(this.ref_create(ret));
+			resolve(this.create(ret));
 		});
 		
-		this.ipc.on('ref_get', (resolve, target, prop, reciever) => {
-			target = this.ref_resolve(target);
-			prop = this.ref_read(prop);
-			reciever = this.ref_read(reciever);
+		this.ipc.on(REF.GET, (resolve, target, prop, reciever) => {
+			target = this.resolve(target);
+			prop = this.read(prop);
+			reciever = this.read(reciever);
 			
 			var data, threw;
 			
 			try{ data = Reflect.get(target, prop, reciever)
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_set', (resolve, target, prop, value) => {
-			target = this.ref_resolve(target);
-			prop = this.ref_read(prop);
-			value = this.ref_read(value);
+		this.ipc.on(REF.SET, (resolve, target, prop, value) => {
+			target = this.resolve(target);
+			prop = this.read(prop);
+			value = this.read(value);
 			
 			var data, threw;
 			
 			try{ data = Reflect.set(target, prop, value)
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_apply', (resolve, target, that, args) => {
-			target = this.ref_resolve(target);
-			that = this.ref_read(that);
-			args = this.ref_read(args);
+		this.ipc.on(REF.APPLY, (resolve, target, that, args) => {
+			target = this.resolve(target);
+			that = this.read(that);
+			args = this.read(args);
 			
 			if(args.length)args = [...args];
 			else args = [];
@@ -489,165 +509,158 @@ class Refs {
 			try{ data = Reflect.apply(target, that, args)
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_construct', (resolve, target, args, new_target) => {
-			args = [...this.ref_read(args)];
-			new_target = this.ref_read(new_target);
-			target = this.ref_resolve(target);
+		this.ipc.on(REF.CONSTRUCT, (resolve, target, args, new_target) => {
+			args = [...this.read(args)];
+			new_target = this.read(new_target);
+			target = this.resolve(target);
 			
 			var data, threw;
 			
 			try{ data = Reflect.construct(target, args, new_target)
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_has', (resolve, target, prop) => {
-			target = this.ref_resolve(target);
-			prop = this.ref_read(prop);
+		this.ipc.on(REF.HAS, (resolve, target, prop) => {
+			target = this.resolve(target);
+			prop = this.read(prop);
 			
 			var data, threw;
 			
 			try{ data = Reflect.has(target, prop)
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_get_proto', (resolve, id) => {
+		this.ipc.on(REF.GET_PROTO, (resolve, id) => {
 			var data, threw;
 			
-			try{ data = Reflect.getPrototypeOf(this.ref_resolve(id))
+			try{ data = Reflect.getPrototypeOf(this.resolve(id))
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_set_proto', (resolve, id, value) => {
+		this.ipc.on(REF.SET_PROTO, (resolve, id, value) => {
 			var data, threw;
 			
-			try{ data = Reflect.setPrototypeOf(this.ref_resolve(id), this.ref_read(value))
+			try{ data = Reflect.setPrototypeOf(this.resolve(id), this.read(value))
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_ownkeys', (resolve, id) => {
+		this.ipc.on(REF.OWNKEYS, (resolve, id) => {
 			var data, threw;
 			
-			try{ data = Reflect.ownKeys(this.ref_resolve(id))
+			try{ data = Reflect.ownKeys(this.resolve(id))
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_get_desc', (resolve, target, prop) => {
-			target = this.ref_resolve(target);
-			prop = this.ref_read(prop);
+		this.ipc.on(REF.GET_DESC, (resolve, target, prop) => {
+			target = this.resolve(target);
+			prop = this.read(prop);
 			
 			var data, threw;
 			
 			try{ data = Object.entries(Reflect.getOwnPropertyDescriptor(target, prop))
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_set_desc', (resolve, target, prop, value) => {
-			target = this.ref_resolve(target);
-			prop = this.ref_read(prop);
-			value = this.ref_read(value);
+		this.ipc.on(REF.SET_DESC, (resolve, target, prop, value) => {
+			target = this.resolve(target);
+			prop = this.read(prop);
+			value = this.read(value);
 			
 			var data, threw;
 			
 			try{ data = Reflect.defineProperty(target, prop, Object.fromEntries(value))
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
-		this.ipc.on('ref_delete_prop', (resolve, target, prop) => {
-			target = this.ref_resolve(target);
-			prop = this.ref_read(prop);
+		this.ipc.on(REF.DELETE_PROP, (resolve, target, prop) => {
+			target = this.resolve(target);
+			prop = this.read(prop);
 			
 			var data, threw;
 			
 			try{ data = Reflect.deleteProperty(target, prop)
 			}catch(err){ data = err; threw = true }
 			
-			resolve(this.ref_create(data, threw));
+			resolve(this.create(data, threw));
 		});
 		
 		this.refs = new Map();
 		
-		this.ref_create(this);
-		this.global = this.ref_handle(0);
+		this.create(this);
+		this.global = this.handle(0);
 	}
-	noop(){}
-	ref_delete(id){
+	delete(id){
 		return this.refs.delete(id);
 	}
-	ref_resolve(id){
+	resolve(id){
 		return this.refs.get(id);
 	}
-	ref_create(data, exception = false){
-		var ret = [ typeof data, data, exception ];
+	create(data, exception = false){
+		var res = false,
+			ret = [ typeof data, data, exception ];
 		
 		for(let [ id, dt ] of this.refs)if(data === dt){
 			ret[1] = id;
-			return ret;
+			res = true;
 		}
 		
-		if(this.proxies.has(data)){
+		if(res){}
+		else if(this.proxies.has(data)){
 			ret[0] = 'ref';
 			ret[1] = this.proxies.get(data);
-			return ret;
-		}
-		
-		if(typeof data == 'symbol'){
+		} else if(typeof data == 'symbol'){
 			for(let prop of this.symbols)if(Symbol[prop] == data){
 				ret[0] = 'symbol_res';
 				ret[1] = prop;
 				
-				return ret;
+				break;
 			}
-			
-			console.warn('Could not create symbol:', data);
-		}
-		
-		if(data === null){
+		}else if(data === null){
 			ret[0] = 'json';
 			ret[1] = null;
-			
-			return ret;
+		}else if(this.base[ret[0]]){
+			ret[1] = this.refs.size;
+			this.refs.set(ret[1], data);
 		}
-		
-		if(!this.needs_handle.includes(typeof data))return ret;
-		
-		ret[1] = this.refs.size;
-		
-		this.refs.set(ret[1], data);
 		
 		return ret;
 	}
-	ref_read([ type, id, is_exception ], can_throw){
+	read(arr, can_throw){
+		if(!Array.isArray(arr))throw new ReferenceError(`The reference cannot be read. Was the reference destroyed? (Recieved '${arr}')`);
+		
+		var [ type, id, is_exception ] = arr;
+		
 		var data;
 		
 		if(type == 'undefined')data = undefined;
 		else if(type == 'symbol_res' && typeof id == 'string')data = Symbol[id];
-		else if(type == 'ref')data = this.ref_resolve(id);
-		else if(this.needs_handle.includes(type))data = this.ref_handle(id, type);
+		else if(type == 'ref')data = this.resolve(id);
+		else if(this.base[type])data = this.handle(id, type);
 		else data = id;
 		
 		if(is_exception && can_throw)throw this.host.native.error(data);
 		else return data;
 	}
 	// resolve a local reference
-	ref_handle(id, type = 'object'){
-		var target = type == 'function' ? this.base_func : this.base_obj,
+	handle(id, type = 'object'){
+		var target = this.base[type],
 			proxy = new Proxy(target, new Handle(this, id, target));
 		
 		this.proxies.set(proxy, id);

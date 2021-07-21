@@ -152,10 +152,9 @@ config("executable_ldconfig") {
         ldflags = [
             "--bind",
             # debugging
-             "-g3", # "-gsource-map",
+            "-g3", # "-gsource-map",
             "-s", # "NO_EXIT_RUNTIME=1",
-            # "-s", "EXPORTED_FUNCTIONS=['_jsc_eval', '_jsc_compile', '_jsc_eval_bytecode']",
-            "-s", "EXTRA_EXPORTED_RUNTIME_METHODS=['ccall']",
+            "-s", "EXPORTED_RUNTIME_METHODS=['ccall']",
             #"-s", "BINARYEN_TRAP_MODE='clamp'",
             "-s", "ALLOW_MEMORY_GROWTH=1",
             #"-s", "USE_PTHREADS=1",

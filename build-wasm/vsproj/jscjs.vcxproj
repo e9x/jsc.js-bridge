@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Source\JavaScriptCore\JSCJS\jscjs.h" />
+    <ClInclude Include="..\Source\JavaScriptCore\JSCJS\WeakRef.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -78,7 +79,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)..\Source\WTF;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <IncludePath>D:\dev\emsdk\upstream\emscripten\system\include;$(SolutionDir)..\Source\JavaScriptCore\jit;$(SolutionDir)..\Source\JavaScriptCore\wasm\js;$(SolutionDir)..\Source\JavaScriptCore\wasm;$(SolutionDir)..\Source\JavaScriptCore\disassembler;$(SolutionDir)..\Source\JavaScriptCore\llint;$(SolutionDir)..\Source\JavaScriptCore\interpreter;$(SolutionDir)..\Source\JavaScriptCore\inspector;$(SolutionDir)..\Source\JavaScriptCore\bindings;$(SolutionDir)..\Source\JavaScriptCore\b3;$(SolutionDir)..\Source\JavaScriptCore\builtins;$(SolutionDir)..\Source\JavaScriptCore\DerivedSources\JavaScriptCore\ForwardingHeaders\JavaScriptCore;$(SolutionDir)..\Source\JavaScriptCore\DerivedSources\JavaScriptCore;$(SolutionDir)..\Source\JavaScriptCore\DerivedSources;$(SolutionDir)..\Source\JavaScriptCore\heap;$(SolutionDir)..\Source\JavaScriptCore\parser;$(SolutionDir)..\Source\JavaScriptCore\API\glib;$(SolutionDir)..\Source\JavaScriptCore\API;$(SolutionDir)..\Source\JavaScriptCore\runtime;$(SolutionDir)..\Source\JavaScriptCore;$(SolutionDir)..\Source\WTF;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <SourcePath>$(SolutionDir)..\Source\JavaScriptCore\API;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

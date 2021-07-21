@@ -2,7 +2,8 @@
 
 var Refs = require('./Refs'),
 	Events = require('./Events'),
-	IPC = require('./IPC');
+	IPC = require('./IPC'),
+	{ EVAL } = require('./EventTypes');
 
 class Host extends Events {
 	constructor($){
@@ -10,15 +11,17 @@ class Host extends Events {
 		
 		this.$ = $;
 		
-		this.ipc = new IPC(this.$.send.bind(this.$));
+		this.ipc = new IPC((event, ...data) => {
+			this.$.send(event, ...data);
+		});
 		
 		this.refs = new Refs(this);
 		
-		this.refs.ref_create(globalThis);
-		this.refs.ref_create(this);
+		this.refs.create(globalThis);
+		this.refs.create(this);
 		
-		this.bridge = this.refs.ref_handle(1);
-		this.global = this.refs.ref_handle(2);
+		this.bridge = this.refs.handle(1);
+		this.global = this.refs.handle(2);
 		
 		/*this.ipc.on('ready', () => {
 			this.ready.resolve();
@@ -71,7 +74,7 @@ class Host extends Events {
 	}
 	execute(x, ...args){
 		if(typeof x == 'function'){
-			let ret = this.refs.ref_read(this.ipc.post('eval', '(' + x + ')'));
+			let ret = this.refs.read(this.ipc.post(EVAL, '(' + x + ')'));
 			
 			// SyntaxError
 			if(ret.thrown)throw this.refs.native.error(ret.data);
@@ -83,7 +86,7 @@ class Host extends Events {
 				throw this.refs.native.error(err);
 			}
 		}else{
-			let ret = this.refs.ref_read(this.ipc.post('eval', x));
+			let ret = this.refs.read(this.ipc.post(EVAL, x));
 			
 			if(ret.thrown)throw this.native.error(ret.data);
 			
@@ -96,6 +99,13 @@ class Host extends Events {
 	}
 	destroy(){
 		this.$.delete();
+		delete this.refs;
+		delete this.ipc;
+		delete this.global;
+		delete this.bridge;
+		delete this.native;
+		delete this.bytecode;
+		delete this.$;
 	}
 };
 

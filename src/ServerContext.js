@@ -5,19 +5,28 @@ var Host = require('./Host'),
 
 class ServerContext extends Host {
 	constructor(server){
-		super(Object.assign(new server.Module.JSCJS(), {
-			send(...data){
-				this.eval(`JSC.context.ipc.emit(...${JSON.stringify(data)})`);
-			},
-
-		}));
+		var mod = new server.Module.JSCJS();
 		
-		server.eventp.on(this.$.id, this.ipc.emit.bind(this.ipc));
+		mod.send = (event, ...data) => mod.send_json(event, JSON.stringify(data));
+		
+		mod.log = (...args) => console.log(JSON.stringify([ '[HOST]', ...args ]));
+		
+		super(mod);
+		
+		server.Module.eventp.on(this.$.id, this.ipc.emit.bind(this.ipc));
+		
+		/*(event, ...data) => {
+			// console.log('INCOMING TO CTX', event, ...data);
+			this.ipc.emit(event, ...data);
+			// this.ipc.emit.bind(this.ipc)
+		}*/
 		
 		// Load the client script.
-		this.$.eval(server.client_js.replace('CONTEXT_ID', this.$.id));
+		console.log('EVAL CLIENT:', this.$.eval(server.client_js));
 		
-		this.$.send('ready');
+		this.ipc.send(13);
+		
+		window.test = this;
 	}
 }
 
