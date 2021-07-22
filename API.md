@@ -1,5 +1,3 @@
-# JSC.js Bridge API
-
 ## Calling native functions
 
 Native functions cannot accept handles. Create a native object and assign your data to it.
