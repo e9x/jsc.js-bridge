@@ -3,6 +3,7 @@
 // billming
 #include "config.h"
 
+#include <sstream>
 #include <iostream>
 #include <vector>
 #include "ArrayBuffer.h"
@@ -100,6 +101,7 @@
 #include "JSValue.h"
 #include "JSStringRef.h"
 #include "JSString.h"
+#include "WeakRef.h"
 
 #include "Error.h"
 

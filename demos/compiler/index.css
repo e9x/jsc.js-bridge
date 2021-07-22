@@ -1,0 +1,43 @@
+body {
+	margin: 16px;
+	font: 16px Calibri;
+	display: flex;
+	flex-direction: column;
+}
+
+p, h3 {
+	margin-top: 4px;
+}
+
+textarea {
+	white-space: nowrap;
+	width: auto;
+	height: 15em;
+	padding: 5px;
+	border-radius: 0px;
+	outline: none;
+}
+
+a {
+	color: #24f;
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+secure-input {
+	width: 500px;
+}
+
+.compile {
+	flex: none;
+	width: fit-content;
+}
+
+.files {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+}

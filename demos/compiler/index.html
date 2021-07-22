@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset='utf8' />
+		<link rel='stylesheet' href='./index.css' />
+	</head>
+	<body>
+		<h3>Compiler</h3>
+		<textarea spellcheck='false' class='input' placeholder='Your code here'></textarea>
+		<button class='compile'>Compile</button>
+		<h3>Files</h3>
+		<div class='files'></div>
+		<script type='load.js'>(async () => {
+	var compiled = fetch('./load.jsc').then(res => res.arrayBuffer());
+	await JSC.ready;
+	new JSC.Context().bytecode.execute(await compiled);
+})();</script>
+		<script type='example'>// destructure server context objects for convenience
+var { HTMLElement, document, window } = JSC.context.bridge,
+	private_string = Symbol(); // wont be serialized
+
+JSC.context.global.secure_input = function(){
+	if(!(this instanceof HTMLElement))throw new TypeError('Must be called on HTMLElement');
+	
+	var shadow = this.attachShadow(JSC.context.json({
+		mode: 'closed',
+	}));
+	
+	console.log('Shadow attached.');
+	
+	var input = shadow.appendChild(document.createElement('input'));
+	
+	input.style.width = '100%';
+	
+	this[private_string] = '';
+	
+	input.addEventListener('focus', () => {
+		input.value = this[private_string];
+		this[private_string] = '';
+	}, { passive: true });
+	
+	input.addEventListener('blur', () => {
+		this[private_string] = input.value;
+		input.value = '*'.repeat(this[private_string].length);
+	}, { passive: true });
+	
+	Object.defineProperties(this, {
+		placeholder: {
+			get(){
+				return input.placeholder;
+			},
+			set(value){
+				return input.placeholder = value;
+			},
+		},
+		value: {
+			set(value){
+				input.value = value;
+			},
+		},
+	});
+	
+	this.get_value = get_value;
+};
+
+function get_value(){
+	console.trace('Value accessed');
+	
+	return string;
+}</script>
+		<script src='../../dist/jsc.js'></script>
+		<script src='./utils.js'></script>
+		<script src='./index.js'></script>
+	</body>
+</html>
