@@ -5,7 +5,7 @@
 Native functions cannot accept handles. Create a native object and assign your data to it.
 
 ```js
-var Content = new JSC.Context();
+var context = new JSC.Context();
 
 context.execute(() => {
 	var native_object = new JSC.context.bridge.Object();
@@ -23,6 +23,10 @@ context.execute(() => {
 });
 ```
 
+## JSC.context
+
+An instance of JSC.Context only found in the client.
+
 ## new JSC.Context();
 
 Creates a JSC context.
@@ -35,6 +39,22 @@ var context = new JSC.Context();
 context.execute('console.log("test");');
 
 context.destroy();
+```
+
+### Context.on('log', callback)
+### Context.on('info', callback)
+### Context.on('warn', callback)
+### Context.on('error', callback)
+### Context.on('trace', callback)
+
+Handler for context's console, default behavior is to log to the parent context.
+
+#### Example
+
+```js
+var context = new JSC.Context();
+
+context.on('log', (...data) => console.log('Context says:', ...data));
 ```
 
 ### Context.bridge
@@ -53,10 +73,10 @@ Deallocates JSC context and references.
 
 Returns a handle to the code executed in the parallel context as a handle or JSON.
 
-| Param | Type | Description |
-| --- | --- | --- |
-| code | `String|Function` | A string or function containing code to be executed in the JSC context |
-| ...args | `Any` | Arguments to call `code` with, this will be ignored if `code` is a string |
+| Param   | Type              | Description                                                            |
+| ------- | ----------------- | ---------------------------------------------------------------------- |
+| code    | `String|Function` | A string or function containing code to be executed in the JSC context |
+| ...args | `Any` | Arguments to call `code` with, this will be ignored if `code` is a string          |
 
 #### Example
 

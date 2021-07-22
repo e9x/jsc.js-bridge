@@ -30,7 +30,7 @@ class ClientContext extends Host {
 		
 		
 		// ...data.map(data => this.native.error(data))
-		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = this.global.emit_log.bind(this.global, prop);
+		for(let prop of [ 'log', 'error', 'warn', 'info', 'debug', 'trace' ])globalThis.console[prop] = this.global.emit_log.bind(this.global, prop);
 	}
 }
 
