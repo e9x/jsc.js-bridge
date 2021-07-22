@@ -8,8 +8,6 @@
 		<script type='module'>
 /*
 TODO:
-
-- context.on('log')
 - Refs as weakmap
 */
 
@@ -17,11 +15,13 @@ await JSC.ready;
 
 var context = new JSC.Context();
 
+context.on('log', (...data) => console.log('Context says:', ...data));
+
 var exec = log => {
 	context.bridge.exposed = () => log('Exposed function was called');
 	
 	context.execute(log => {
-		log('Console.log text', { ok: true });
+		console.log('Console.log text', { ok: true });
 		exposed();
 	}, log);
 };

@@ -28,15 +28,9 @@ class ClientContext extends Host {
 		
 		$.event  = this.ipc.emit.bind(this.ipc);
 		
-		var cons = this.bridge.console;
 		
-		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
-			try{
-				cons[prop]('[JSC]', ...data.map(data => this.native.error(data)))
-			}catch(err){
-				console_log(err + '');
-			}
-		}) : cons[prop].bind(cons, '[JSC]');
+		// ...data.map(data => this.native.error(data))
+		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = this.global.emit_log.bind(this.global, prop);
 	}
 }
 

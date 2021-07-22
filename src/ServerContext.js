@@ -20,6 +20,9 @@ class ServerContext extends Host {
 		// Load the client script.
 		this.$.main(server.client_js);
 	}
+	emit_log(prop, ...data){
+		if(!this.emit(prop, ...data))console[prop](...data);
+	}
 }
 
 module.exports = ServerContext;
