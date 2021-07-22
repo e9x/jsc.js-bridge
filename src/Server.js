@@ -2,7 +2,7 @@
 
 var current = typeof document == 'object' && document.currentScript ? document.currentScript.src : 'https://e9x.github.io/jsc.js-bridge/dist/',
 	Context = require('./ServerContext'),
-	Events = require('./Events');
+	{ Router } = require('./Events');
 
 class Server {
 	constructor(){
@@ -53,7 +53,7 @@ class Server {
 			},
 		};
 		
-		this.Module.eventp = new Events();
+		this.Module.eventp = new Router();
 		
 		require('../build-wasm/out/jsc.js?emcc')(this.Module);
 	}

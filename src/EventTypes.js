@@ -15,5 +15,4 @@ exports.REF = {
 };
 
 exports.EVAL = 11;
-exports.POST = 12;
 exports.READY = 13;

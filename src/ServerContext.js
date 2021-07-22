@@ -1,32 +1,24 @@
 'use strict';
 
-var Host = require('./Host'),
-	IPC = require('./IPC');
+var Host = require('./Host');
 
 class ServerContext extends Host {
 	constructor(server){
 		var mod = new server.Module.JSCJS();
 		
-		mod.send = (event, ...data) => mod.send_json(event, JSON.stringify(data));
+		mod.send = (event, ...data) => JSON.parse(mod.send_json(event, JSON.stringify(data)));
 		
 		mod.log = (...args) => console.log(JSON.stringify([ '[HOST]', ...args ]));
 		
 		super(mod);
 		
-		server.Module.eventp.on(this.$.id, this.ipc.emit.bind(this.ipc));
-		
-		/*(event, ...data) => {
-			// console.log('INCOMING TO CTX', event, ...data);
-			this.ipc.emit(event, ...data);
-			// this.ipc.emit.bind(this.ipc)
-		}*/
+		server.Module.eventp.register(this.$.id, (event, data) => {
+			// console.log('FROM CPP', event, data);
+			return this.ipc.emit(event, ...JSON.parse(data));
+		});
 		
 		// Load the client script.
-		console.log('EVAL CLIENT:', this.$.eval(server.client_js));
-		
-		this.ipc.send(13);
-		
-		window.test = this;
+		this.$.main(server.client_js);
 	}
 }
 

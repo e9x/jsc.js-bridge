@@ -19,7 +19,7 @@ class Events {
 		return callbacks;
 	};
 	on(event, callback){
-		if(typeof callback != 'function')throw new TypeError('callback is not a function');
+		if(typeof callback != 'function')throw new TypeError('Callback is not a function.');
 		
 		Events.resolve(this, event).add(callback);
 	}
@@ -34,7 +34,7 @@ class Events {
 		this.on(event, callback);
 	}
 	off(event, callback){
-		if(typeof callback != 'function')throw new TypeError('callback is not a function');
+		if(typeof callback != 'function')throw new TypeError('Callback is not a function.');
 		
 		if(callback[Events.original_func])callback = callback[Events.original_func];
 		
@@ -58,6 +58,35 @@ class Events {
 	}
 };
 
+class Router {
+	constructor(send = () => {}){
+		this.send = send;
+		
+		this.routes = new Map();
+	}
+	register(event, callback){
+		this.routes.set(event, callback);
+	}
+	emit(event, ...data){
+		if(!this.routes.has(event))throw new RangeError(`Event ${event} not registered`);
+		
+		return this.routes.get(event).call(this, ...data);
+	}
+	emit_gjson(...args){
+		return JSON.stringify(this.emit(...args));
+	}
+};
+
+Events.Events = Events;
+
+Events.Router = Router;
+
 Events.map = new WeakMap();
+
+Events.mix = obj => {
+	for(let prop of ['on', 'once', 'off', 'emit'])obj[prop] = Events.prototype[prop];
+	
+	return obj;
+};
 
 module.exports = Events;

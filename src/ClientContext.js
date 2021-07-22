@@ -7,13 +7,13 @@ class ClientContext extends Host {
 	constructor(server){
 		super({
 			eval: x => {
-				jscLINK.log(x);
+				$.log(x);
 				this.bridge.eval(x);
 			},
-			id: jscLINK.id,
+			id: $.id,
+			log: $.log,
 			send: (event, ...data) => {
-				// this.link.log('SEND TO SERVER', event, data);
-				this.link.send(event, ...data);
+				return JSON.parse($.send(event, ...data));
 			},
 			delete(){
 				throw new Error('Cannot delete the server context.');
@@ -26,27 +26,17 @@ class ClientContext extends Host {
 			},
 		});
 		
-		this.link = jscLINK;
+		$.event  = this.ipc.emit.bind(this.ipc);
 		
-		jscLINK.event  = (event, ...data) => {
-			// jscLINK.log('got event', event, data);
-			
-			if(!this.ipc.emit(event, ...data))this.link.log('Unregistered event:', event);
-		};
+		var cons = this.bridge.console;
 		
-		this.link.send(69);
-		
-		this.ipc.on(READY, () => {
-			var cons = this.bridge.console;
-			
-			for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
-				try{
-					cons[prop]('[SUB]', ...data.map(data => this.native.error(data)))
-				}catch(err){
-					console_log(err + '');
-				}
-			}) : cons[prop].bind(cons, '[SUB]');
-		});
+		for(let prop of [ 'log', 'error', 'warn', 'debug', 'trace' ])globalThis.console[prop] = prop == 'error' ? ((...data) => {
+			try{
+				cons[prop]('[JSC]', ...data.map(data => this.native.error(data)))
+			}catch(err){
+				console_log(err + '');
+			}
+		}) : cons[prop].bind(cons, '[JSC]');
 	}
 }
 
