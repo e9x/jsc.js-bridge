@@ -26,27 +26,6 @@ var exec = log => {
 	}, log);
 };
 
-var amount = 100;
-while(amount--)exec(() => {});
-
-/* 7/21/2021 3:30 PM
-// 5 Trials
-// - exec: 383.973876953125 ms
-// - exec: 377.408935546875 ms
-// - exec: 375.248046875 ms
-// - exec: 396.73974609375 ms
-// - exec: 372.371826171875 ms
-*/
-
-/* 
-// 5 Trials
-// - 
-// - 
-// - 
-// - 
-// - 
-*/
-
 console.time('exec');
 exec(console.log);
 console.timeEnd('exec');
