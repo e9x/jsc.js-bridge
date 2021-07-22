@@ -30,9 +30,9 @@ Embed the dist code on your website or host it locally
 
 ### Demos
 
-[Compiler](./demos/compiler)
+[Compiler](https://e9x.github.io/jsc.js-bridge/demos/compiler)
 
-[Secure Input Element](./demos/secure-input)
+[Secure Input Element](https://e9x.github.io/jsc.js-bridge/demos/secure-input)
 
 ### [API Docs](./API.md)
 

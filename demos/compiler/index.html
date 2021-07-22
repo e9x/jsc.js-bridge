@@ -16,19 +16,18 @@
 	new JSC.Context().bytecode.execute(await compiled);
 })();</script>
 		<script type='example'>// destructure server context objects for convenience
-var { HTMLElement, document, Object, window } = JSC.context.bridge,
+var { HTMLElement, document, window } = JSC.context.bridge,
 	private_string = Symbol(); // wont be serialized
 
 JSC.context.global.secure_input = function(){
 	if(!(this instanceof HTMLElement))throw new TypeError('Must be called on HTMLElement');
 	
-	var options = new Object();
-	options.mode = 'closed';
-	
-	var shadow = this.attachShadow(options);
+	var shadow = this.attachShadow(JSC.context.json({
+		mode: 'closed',
+	}));
 	
 	console.log('Shadow attached.');
-	/*
+	
 	var input = shadow.appendChild(document.createElement('input'));
 	
 	input.style.width = '100%';
@@ -60,11 +59,11 @@ JSC.context.global.secure_input = function(){
 			},
 		},
 	});
-	*/
+	
 	this.get_value = get_value;
 };
 
-function get_value(){{
+function get_value(){
 	console.trace('Value accessed');
 	
 	return string;

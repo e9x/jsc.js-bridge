@@ -344,8 +344,14 @@ class Handle {
 	getOwnPropertyDescriptor(target, prop){
 		var desc = this.host.read(this.host.ipc.send(REF.GET_DESC, this.id, this.host.create(prop)));
 		
+		if(typeof desc == 'object'){
+			desc = Object.fromEntries(desc);
+			
+			desc.configurable = true;
+		}
+		
 		// use Object.entries and Object.fromEntries to have the object as is, not a proxy or stuffed with getters
-		return typeof desc == 'object' ? Object.fromEntries(desc) : desc;
+		return desc;
 	}
 	defineProperty(target, prop, value){
 		return this.host.read(this.host.ipc.send(REF.SET_DESC, this.id, this.host.create(prop), this.host.create(Object.entries(value))));
@@ -388,6 +394,9 @@ class Refs {
 		return (resolve, ...handles) => {
 			
 		};
+	}
+	proxy_id(proxy){
+		return this.proxies.get(proxy);
 	}
 	constructor(host){
 		this.host = host;
